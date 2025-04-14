@@ -23,8 +23,7 @@ $(OUT_DIR)/BOOTX64.EFI:	surtr/boot.so
 surtr/boot.so: surtr/boot.o
 	ld $(LDFLAGS) $< -o	$@ -lgnuefi	-lefi
 
-surtr/boot.o: surtr/boot.c
-	$(CC) $(CFLAGS)	-c $< -o $@
+surtr/boot.o: surtr/log.h
 
 run: $(OUT_DIR)/BOOTX64.EFI
 	qemu-system-x86_64 \
