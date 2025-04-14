@@ -12,6 +12,4 @@
 # Built Visual Studio Code Extensions
 *.vsix
 
-out/
-*.o
-*.so
+build/
