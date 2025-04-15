@@ -32,7 +32,7 @@ $(OBJ_DIR)/boot.o: boot.c log.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
-	qemu-system-x86_64 \
+	qemu-system-$(ARCH) \
 		-m 512M \
 		-bios /usr/share/ovmf/OVMF.fd \
 		-drive file=fat:rw:$(IMG_DIR),format=raw \

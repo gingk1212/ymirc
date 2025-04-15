@@ -1,5 +1,3 @@
-.PHONY: all ymirc surtrc run clean
-
 all: ymirc surtrc
 
 ymirc:
@@ -8,8 +6,10 @@ ymirc:
 surtrc:
 	$(MAKE) -C surtrc
 
-run:
+run: all
 	$(MAKE) -C surtrc run
 
 clean:
 	rm -rf build
+
+.PHONY: all ymirc surtrc run clean
