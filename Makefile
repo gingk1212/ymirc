@@ -1,6 +1,9 @@
-.PHONY: all surtrc clean run
+.PHONY: all ymirc surtrc run clean
 
-all: surtrc
+all: ymirc surtrc
+
+ymirc:
+	$(MAKE) -C ymirc
 
 surtrc:
 	$(MAKE) -C surtrc

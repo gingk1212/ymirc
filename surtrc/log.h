@@ -21,13 +21,13 @@
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_INFO
-#define LOG_INFO(fmt, ...) Print(L"[INFO] " fmt L"\n", ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...) Print(L"[INFO ] " fmt L"\n", ##__VA_ARGS__)
 #else
 #define LOG_INFO(fmt, ...) ((void)0)
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_WARN
-#define LOG_WARN(fmt, ...) Print(L"[WARN] " fmt L"\n", ##__VA_ARGS__)
+#define LOG_WARN(fmt, ...) Print(L"[WARN ] " fmt L"\n", ##__VA_ARGS__)
 #else
 #define LOG_WARN(fmt, ...) ((void)0)
 #endif
