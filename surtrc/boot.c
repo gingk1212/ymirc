@@ -4,14 +4,25 @@
 #include <inttypes.h>
 #include "log.h"
 
-EFI_FILE_HANDLE
-get_volume(EFI_HANDLE image_handle)
+#define TRY_EFI(expr)                                      \
+    do                                                     \
+    {                                                      \
+        EFI_STATUS _status = (expr);                       \
+        if (EFI_ERROR(_status))                            \
+        {                                                  \
+            LOG_ERROR(L"%a:%d: %a failed: %r",             \
+                      __FILE__, __LINE__, #expr, _status); \
+            return _status;                                \
+        }                                                  \
+    } while (0)
+
+EFI_STATUS
+get_volume(EFI_FILE_HANDLE *volume, EFI_HANDLE image_handle)
 {
     EFI_LOADED_IMAGE_PROTOCOL *loaded_image;
     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *simple_file_system;
-    EFI_FILE_HANDLE volume;
 
-    uefi_call_wrapper(
+    TRY_EFI(uefi_call_wrapper(
         BS->OpenProtocol,
         6,
         image_handle,
@@ -19,9 +30,9 @@ get_volume(EFI_HANDLE image_handle)
         (void **)&loaded_image,
         image_handle,
         NULL,
-        EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+        EFI_OPEN_PROTOCOL_GET_PROTOCOL));
 
-    uefi_call_wrapper(
+    TRY_EFI(uefi_call_wrapper(
         BS->OpenProtocol,
         6,
         loaded_image->DeviceHandle,
@@ -29,58 +40,43 @@ get_volume(EFI_HANDLE image_handle)
         (void **)&simple_file_system,
         image_handle,
         NULL,
-        EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+        EFI_OPEN_PROTOCOL_GET_PROTOCOL));
 
-    uefi_call_wrapper(
+    TRY_EFI(uefi_call_wrapper(
         simple_file_system->OpenVolume,
         2,
         simple_file_system,
-        &volume);
+        volume));
 
-    return volume;
+    return EFI_SUCCESS;
 }
 
-EFI_FILE_HANDLE
-open_file(EFI_FILE_HANDLE dir, CHAR16 *file_name, UINT64 open_mode)
+EFI_STATUS
+open_file(EFI_FILE_HANDLE *file_handle, EFI_FILE_HANDLE dir_handle, CHAR16 *file_name, UINT64 open_mode)
 {
-    EFI_FILE_HANDLE file_handle;
-
-    uefi_call_wrapper(
-        dir->Open,
+    TRY_EFI(uefi_call_wrapper(
+        dir_handle->Open,
         5,
-        dir,
-        &file_handle,
+        dir_handle,
+        file_handle,
         file_name,
         open_mode,
-        0);
+        0));
 
-    return file_handle;
+    return EFI_SUCCESS;
 }
 
-UINT8 *
-read_file(EFI_FILE_HANDLE file_handle, UINTN *size)
+EFI_STATUS
+read_file(void *buffer, EFI_FILE_HANDLE file_handle, UINTN *size)
 {
-    EFI_STATUS status;
-    UINT8 *buffer;
+    TRY_EFI(uefi_call_wrapper(
+        file_handle->Read,
+        3,
+        file_handle,
+        size,
+        buffer));
 
-    // Allocate buffer for the file content
-    buffer = AllocatePool(*size);
-    if (!buffer)
-    {
-        LOG_ERROR(L"Failed to allocate memory.");
-        return NULL;
-    }
-
-    // Read the file content
-    status = uefi_call_wrapper(file_handle->Read, 3, file_handle, size, buffer);
-    if (EFI_ERROR(status))
-    {
-        LOG_ERROR(L"Failed to read file: %" PRIu64, status);
-        FreePool(buffer);
-        return NULL;
-    }
-
-    return buffer;
+    return EFI_SUCCESS;
 }
 
 EFI_STATUS
@@ -88,23 +84,24 @@ EFIAPI
 efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
     InitializeLib(image_handle, system_table);
-    uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut);
+    TRY_EFI(uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut));
 
-    LOG_INFO(L"SurtrC bootloader started.");
-
-    EFI_FILE_HANDLE root_dir = get_volume(image_handle);
+    EFI_FILE_HANDLE root_dir[1];
+    TRY_EFI(get_volume(root_dir, image_handle));
     LOG_INFO(L"Opened filesystem volume.");
 
-    EFI_FILE_HANDLE kernel = open_file(root_dir, L"ymirc.elf", EFI_FILE_MODE_READ);
+    EFI_FILE_HANDLE kernel[1];
+    TRY_EFI(open_file(kernel, root_dir[0], L"ymirc.elf", EFI_FILE_MODE_READ));
     LOG_INFO(L"Opened kernel file.");
 
     UINTN header_size = sizeof(Elf64_Ehdr);
-    Elf64_Ehdr *header_buffer = (Elf64_Ehdr *)read_file(kernel, &header_size);
+    Elf64_Ehdr *header_buffer = AllocatePool(header_size);
     if (!header_buffer)
     {
-        LOG_ERROR(L"Failed to read kernel ELF header.");
-        return EFI_LOAD_ERROR;
+        LOG_ERROR(L"Failed to allocate memory for ELF header.");
+        return EFI_OUT_OF_RESOURCES;
     }
+    TRY_EFI(read_file(header_buffer, kernel[0], &header_size));
     LOG_INFO(L"Read kernel ELF header.");
     LOG_DEBUG(L"Kernel ELF information:");
     LOG_DEBUG(L"  Entry point: 0x%" PRIx64, header_buffer->e_entry);
