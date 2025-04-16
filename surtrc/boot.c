@@ -16,8 +16,9 @@
         }                                                  \
     } while (0)
 
+/** Opens the volume associated with the given UEFI image handle and returns a file handle to the volume's root directory. */
 EFI_STATUS
-get_volume(EFI_FILE_HANDLE *volume, EFI_HANDLE image_handle)
+open_volume(EFI_FILE_HANDLE *volume, EFI_HANDLE image_handle)
 {
     EFI_LOADED_IMAGE_PROTOCOL *loaded_image;
     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *simple_file_system;
@@ -51,6 +52,7 @@ get_volume(EFI_FILE_HANDLE *volume, EFI_HANDLE image_handle)
     return EFI_SUCCESS;
 }
 
+/** Opens a file in the given directory. */
 EFI_STATUS
 open_file(EFI_FILE_HANDLE *file_handle, EFI_FILE_HANDLE dir_handle, CHAR16 *file_name, UINT64 open_mode)
 {
@@ -66,6 +68,7 @@ open_file(EFI_FILE_HANDLE *file_handle, EFI_FILE_HANDLE dir_handle, CHAR16 *file
     return EFI_SUCCESS;
 }
 
+/** Reads data from the file into the buffer. */
 EFI_STATUS
 read_file(void *buffer, EFI_FILE_HANDLE file_handle, UINTN *size)
 {
@@ -87,7 +90,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
     TRY_EFI(uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut));
 
     EFI_FILE_HANDLE root_dir[1];
-    TRY_EFI(get_volume(root_dir, image_handle));
+    TRY_EFI(open_volume(root_dir, image_handle));
     LOG_INFO(L"Opened filesystem volume.");
 
     EFI_FILE_HANDLE kernel[1];
