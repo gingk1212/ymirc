@@ -5,10 +5,10 @@
 #include <efilib.h>
 
 #define LOG_LEVEL_DEBUG 0
-#define LOG_LEVEL_INFO  1
-#define LOG_LEVEL_WARN  2
+#define LOG_LEVEL_INFO 1
+#define LOG_LEVEL_WARN 2
 #define LOG_LEVEL_ERROR 3
-#define LOG_LEVEL_NONE  4
+#define LOG_LEVEL_NONE 4
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL LOG_LEVEL_DEBUG
@@ -38,4 +38,4 @@
 #define LOG_ERROR(fmt, ...) ((void)0)
 #endif
 
-#endif // LOG_H
+#endif  // LOG_H
