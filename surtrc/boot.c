@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <inttypes.h>
 
+#include "arch/x86/page.h"
 #include "log.h"
 
 #define TRY_EFI(expr)                                                         \
@@ -82,6 +83,9 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table) {
   LOG_DEBUG(L"  Is 64-bit: %d", header_buffer->e_ident[EI_CLASS] == ELFCLASS64);
   LOG_DEBUG(L"  # of Program Headers: %" PRIu16, header_buffer->e_phnum);
   LOG_DEBUG(L"  # of Section Headers: %" PRIu16, header_buffer->e_shnum);
+
+  set_lv4table_writable();
+  LOG_DEBUG(L"Set page table writable.");
 
   while (1) {
     __asm__ __volatile__("hlt");

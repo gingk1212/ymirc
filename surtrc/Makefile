@@ -6,7 +6,11 @@ OBJCOPY = objcopy
 
 OBJ_DIR = ../build/surtrc
 IMG_DIR = ../build/img
-TARGET = $(IMG_DIR)/efi/boot/BOOTX64.EFI
+ifeq ($(ARCH),x86_64)
+	TARGET = $(IMG_DIR)/efi/boot/BOOTX64.EFI
+endif
+SRCS = boot.c arch/x86/page.c
+OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
 
 EFI_INC = /usr/include/efi
 EFI_INCS = -I$(EFI_INC) -I$(EFI_INC)/$(ARCH) -I$(EFI_INC)/protocol
@@ -14,7 +18,7 @@ EFI_LIB = /usr/lib
 EFI_CRT_OBJS = $(EFI_LIB)/crt0-efi-$(ARCH).o
 EFI_LDS = $(EFI_LIB)/elf_$(ARCH)_efi.lds
 
-CFLAGS = $(EFI_INCS) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -std=c17 -DLOG_LEVEL=0
+CFLAGS = -I. $(EFI_INCS) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -std=c17 -DLOG_LEVEL=0
 ifeq ($(ARCH),x86_64)
 	CFLAGS += -DEFI_FUNCTION_WRAPPER
 endif
@@ -24,10 +28,10 @@ $(TARGET): $(OBJ_DIR)/boot.so
 	mkdir -p $(@D)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-$(ARCH) $< $@
 
-$(OBJ_DIR)/boot.so: $(OBJ_DIR)/boot.o
-	$(LD) $(LDFLAGS) $< -o $@ -lgnuefi -lefi
+$(OBJ_DIR)/boot.so: $(OBJS)
+	$(LD) $(LDFLAGS) $^ -o $@ -lgnuefi -lefi
 
-$(OBJ_DIR)/boot.o: boot.c log.h
+$(OBJ_DIR)/%.o: %.c log.h arch/x86/page.h
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
