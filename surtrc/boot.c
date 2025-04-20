@@ -56,6 +56,7 @@ read_file(void *buffer, EFI_FILE_HANDLE file_handle, UINTN *size) {
   return EFI_SUCCESS;
 }
 
+/** Computes a memory range of PT_LOAD segments in the kernel ELF file. */
 EFI_STATUS
 compute_kernel_memory_range(Virt *start_virt, Phys *start_phys, Phys *end_phys,
                             const Elf64_Phdr *phdr, int phnum) {
@@ -87,6 +88,7 @@ compute_kernel_memory_range(Virt *start_virt, Phys *start_phys, Phys *end_phys,
   return EFI_SUCCESS;
 }
 
+/** Loads PT_LOAD segments of kernel ELF file to memory. */
 EFI_STATUS
 load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
   LOG_INFO(L"Loading kernel image...");
@@ -101,6 +103,7 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
     LOG_INFO(L"  Seg @ 0x%016" PRIx64 " - 0x%016" PRIx64, ph->p_vaddr,
              ph->p_vaddr + ph->p_memsz);
 
+    /** Zero-clear the BSS section. */
     int zero_count = ph->p_memsz - ph->p_filesz;
     if (zero_count > 0) {
       SetMem((void *)(ph->p_vaddr + ph->p_filesz), zero_count, 0);
@@ -116,14 +119,17 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   InitializeLib(image_handle, system_table);
   TRY_EFI(uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut));
 
+  /** Open volume. */
   EFI_FILE_HANDLE root_dir[1];
   TRY_EFI(open_volume(root_dir, image_handle));
   LOG_INFO(L"Opened filesystem volume.");
 
+  /** Open kernel file. */
   EFI_FILE_HANDLE kernel[1];
   TRY_EFI(open_file(kernel, root_dir[0], L"ymirc.elf", EFI_FILE_MODE_READ));
   LOG_INFO(L"Opened kernel file.");
 
+  /** Read kernel ELF header. */
   UINTN header_size = sizeof(Elf64_Ehdr);
   Elf64_Ehdr *header_buffer = AllocatePool(header_size);
   if (!header_buffer) {
@@ -138,9 +144,11 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   LOG_DEBUG(L"  # of Program Headers: %" PRIu16, header_buffer->e_phnum);
   LOG_DEBUG(L"  # of Section Headers: %" PRIu16, header_buffer->e_shnum);
 
+  /** Set Level 4 page table writable. */
   set_lv4table_writable();
   LOG_DEBUG(L"Set page table writable.");
 
+  /** Read kernel EFL program headers. */
   TRY_EFI(uefi_call_wrapper(kernel[0]->SetPosition, 2, kernel[0],
                             header_buffer->e_phoff));
   UINTN phsize = header_buffer->e_phnum * header_buffer->e_phentsize;
@@ -150,8 +158,9 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
     return EFI_OUT_OF_RESOURCES;
   }
   TRY_EFI(read_file(ph_buffer, kernel[0], &phsize));
-  LOG_INFO(L"Read kernel ELF program header.");
+  LOG_INFO(L"Read kernel ELF program headers.");
 
+  /** Compute necessary memory size for kernel image. */
   Virt start_virt;
   Phys start_phys, end_phys;
   TRY_EFI(compute_kernel_memory_range(&start_virt, &start_phys, &end_phys,
@@ -160,17 +169,20 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   LOG_INFO(L"Kernel image: 0x%016" PRIx64 " - 0x%016" PRIx64 " (0x%x pages)",
            start_phys, end_phys, pages_4kib);
 
+  /** Allocate memory for kernel image. */
   TRY_EFI(uefi_call_wrapper(BS->AllocatePages, 4, AllocateAddress,
                             EfiLoaderData, pages_4kib, &start_phys));
   LOG_INFO(L"Allocated memory for kernel image @ 0x%016" PRIx64
            " ~ 0x%016" PRIx64,
            start_phys, start_phys + pages_4kib * EFI_PAGE_SIZE);
 
+  /** Map memory for kernel image. */
   for (int i = 0; i < pages_4kib; i++) {
     map_4k_to(start_virt + i * EFI_PAGE_SIZE, start_phys + i * EFI_PAGE_SIZE);
   }
   LOG_INFO(L"Mapped memory for kernel image.");
 
+  /** Load kernel image. */
   TRY_EFI(load_segment(kernel[0], ph_buffer, header_buffer->e_phnum));
 
   while (1) {
