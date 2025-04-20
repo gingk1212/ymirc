@@ -15,6 +15,15 @@
     }                                                                         \
   } while (0)
 
+typedef struct {
+  UINTN buffer_size;  // Total buffer size prepared to store the memory map.
+  EFI_MEMORY_DESCRIPTOR *descriptors;
+  UINTN map_size;  // Total memory map size.
+  UINTN map_key;
+  UINTN descriptor_size;
+  UINT32 descriptor_version;
+} MemoryMap;
+
 /** Opens the volume associated with the given UEFI image handle and returns a
  * file handle to the volume's root directory. */
 EFI_STATUS
@@ -190,6 +199,32 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   FreePool(ph_buffer);
   TRY_EFI(uefi_call_wrapper(kernel[0]->Close, 1, kernel[0]));
   TRY_EFI(uefi_call_wrapper(root_dir[0]->Close, 1, root_dir[0]));
+
+  /** Get memory map. */
+  int map_buffer_size = EFI_PAGE_SIZE * 4;
+  UINT8 map_buffer[map_buffer_size];
+  MemoryMap map = {
+      .buffer_size = map_buffer_size,
+      .descriptors = (EFI_MEMORY_DESCRIPTOR *)map_buffer,
+      .map_size = map_buffer_size,
+  };
+  TRY_EFI(uefi_call_wrapper(BS->GetMemoryMap, 5, &map.map_size, map.descriptors,
+                            &map.map_key, &map.descriptor_size,
+                            &map.descriptor_version));
+
+  /** Print memory map. */
+  LOG_DEBUG(L"Memory Map (Physical): Buf=0x%" PRIx64 ", MapSize=0x%" PRIx64
+            ", DescSize=0x%" PRIx64,
+            map.descriptors, map.map_size, map.descriptor_size);
+  for (UINTN i = 0; i < map.map_size / map.descriptor_size; i++) {
+    EFI_MEMORY_DESCRIPTOR *desc =
+        (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)map.descriptors +
+                                  i * map.descriptor_size);
+    LOG_DEBUG(L"  0x%016" PRIx64 " - 0x%016" PRIx64 " (Type: 0x%" PRIx32 ")",
+              desc->PhysicalStart,
+              desc->PhysicalStart + desc->NumberOfPages * EFI_PAGE_SIZE,
+              desc->Type);
+  }
 
   while (1) {
     __asm__ __volatile__("hlt");
