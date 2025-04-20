@@ -185,6 +185,12 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   /** Load kernel image. */
   TRY_EFI(load_segment(kernel[0], ph_buffer, header_buffer->e_phnum));
 
+  /** Clean up memory. */
+  FreePool(header_buffer);
+  FreePool(ph_buffer);
+  TRY_EFI(uefi_call_wrapper(kernel[0]->Close, 1, kernel[0]));
+  TRY_EFI(uefi_call_wrapper(root_dir[0]->Close, 1, root_dir[0]));
+
   while (1) {
     __asm__ __volatile__("hlt");
   }
