@@ -226,6 +226,19 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
               desc->Type);
   }
 
+  /** Exit boot service. */
+  LOG_INFO(L"Exiting boot services.");
+  EFI_STATUS status =
+      uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, map.map_key);
+  if (status == EFI_INVALID_PARAMETER) {
+    map.map_size = map_buffer_size;
+    TRY_EFI(uefi_call_wrapper(BS->GetMemoryMap, 5, &map.map_size,
+                              map.descriptors, &map.map_key,
+                              &map.descriptor_size, &map.descriptor_version));
+    TRY_EFI(
+        uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, map.map_key));
+  }
+
   while (1) {
     __asm__ __volatile__("hlt");
   }
