@@ -24,6 +24,11 @@ typedef struct {
   UINT32 descriptor_version;
 } MemoryMap;
 
+typedef struct {
+  UINTN magic;
+  MemoryMap map;
+} BootInfo;
+
 /** Opens the volume associated with the given UEFI image handle and returns a
  * file handle to the volume's root directory. */
 EFI_STATUS
@@ -146,6 +151,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
     return EFI_OUT_OF_RESOURCES;
   }
   TRY_EFI(read_file(header_buffer, kernel[0], &header_size));
+  Virt e_entry = header_buffer->e_entry;
   LOG_INFO(L"Read kernel ELF header.");
   LOG_DEBUG(L"Kernel ELF information:");
   LOG_DEBUG(L"  Entry point: 0x%" PRIx64, header_buffer->e_entry);
@@ -239,9 +245,15 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
         uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, map.map_key));
   }
 
-  while (1) {
-    __asm__ __volatile__("hlt");
-  }
+  /** Jump to kernel entry point. */
+  typedef void __attribute__((ms_abi)) (*KernelEntryType)(BootInfo);
+  KernelEntryType kernel_entry = (KernelEntryType)(e_entry);
+  BootInfo boot_info = {
+      .magic = 0xDEADBEEFCAFEBABE,
+      .map = map,
+  };
+  kernel_entry(boot_info);
 
+  /** noreachable */
   return EFI_SUCCESS;
 }
