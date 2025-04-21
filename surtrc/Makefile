@@ -28,7 +28,7 @@ $(TARGET): $(OBJ_DIR)/boot.so
 $(OBJ_DIR)/boot.so: $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@ -lgnuefi -lefi
 
-$(OBJ_DIR)/%.o: %.c log.h arch/x86/page.h
+$(OBJ_DIR)/%.o: %.c def.h log.h arch/x86/page.h
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 

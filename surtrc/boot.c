@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include "arch/x86/page.h"
+#include "def.h"
 #include "log.h"
 
 #define TRY_EFI(expr)                                                         \
@@ -14,20 +15,6 @@
       return _status;                                                         \
     }                                                                         \
   } while (0)
-
-typedef struct {
-  UINTN buffer_size;  // Total buffer size prepared to store the memory map.
-  EFI_MEMORY_DESCRIPTOR *descriptors;
-  UINTN map_size;  // Total memory map size.
-  UINTN map_key;
-  UINTN descriptor_size;
-  UINT32 descriptor_version;
-} MemoryMap;
-
-typedef struct {
-  UINTN magic;
-  MemoryMap map;
-} BootInfo;
 
 /** Opens the volume associated with the given UEFI image handle and returns a
  * file handle to the volume's root directory. */
@@ -249,7 +236,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   typedef void __attribute__((ms_abi)) (*KernelEntryType)(BootInfo);
   KernelEntryType kernel_entry = (KernelEntryType)(e_entry);
   BootInfo boot_info = {
-      .magic = 0xDEADBEEFCAFEBABE,
+      .magic = MAGIC,
       .map = map,
   };
   kernel_entry(boot_info);
