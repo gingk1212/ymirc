@@ -80,7 +80,7 @@ compute_kernel_memory_range(Virt *start_virt, Phys *start_phys, Phys *end_phys,
 
   for (int i = 0; i < phnum; i++) {
     const Elf64_Phdr *ph = &phdr[i];
-    if (ph->p_type != PT_LOAD) {
+    if (ph->p_type != PT_LOAD || ph->p_memsz == 0) {
       continue;
     }
     if (ph->p_vaddr < start_virt_tmp) {
