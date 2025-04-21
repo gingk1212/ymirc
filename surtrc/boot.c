@@ -233,13 +233,13 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   }
 
   /** Jump to kernel entry point. */
-  typedef void __attribute__((ms_abi)) (*KernelEntryType)(BootInfo);
+  typedef void (*KernelEntryType)(BootInfo *);
   KernelEntryType kernel_entry = (KernelEntryType)(e_entry);
   BootInfo boot_info = {
       .magic = MAGIC,
       .map = map,
   };
-  kernel_entry(boot_info);
+  kernel_entry(&boot_info);
 
   /** noreachable */
   return EFI_SUCCESS;
