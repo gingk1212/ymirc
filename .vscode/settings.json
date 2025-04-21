@@ -1,8 +1,5 @@
 {
 	"files.associations": {
-		"efilib.h": "c",
-		"efi.h": "c",
-		"log.h": "c",
-		"elf.h": "c"
+		"*.h": "c"
 	}
 }
