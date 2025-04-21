@@ -19,9 +19,6 @@ EFI_CRT_OBJS = $(EFI_LIB)/crt0-efi-$(ARCH).o
 EFI_LDS = $(EFI_LIB)/elf_$(ARCH)_efi.lds
 
 CFLAGS = -I. $(EFI_INCS) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -std=c17 -DLOG_LEVEL=0
-ifeq ($(ARCH),x86_64)
-	CFLAGS += -DEFI_FUNCTION_WRAPPER
-endif
 LDFLAGS = -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB) $(EFI_CRT_OBJS)
 
 $(TARGET): $(OBJ_DIR)/boot.so
