@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "../surtrc/def.h"
+#include "arch/x86/serial.h"
 
 extern const uint8_t __stackguard_lower;
 
@@ -22,6 +23,12 @@ static int validate_boot_info(BootInfo *boot_info) {
 void kernel_main(BootInfo *boot_info) {
   if (validate_boot_info(boot_info)) {
     return;
+  }
+
+  init_serial(com1, 115200);
+  char *msg = "Hello, world!\n";
+  for (int i = 0; msg[i] != '\0'; i++) {
+    write_byte(msg[i], com1);
   }
 
   while (1) {
