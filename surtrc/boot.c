@@ -95,7 +95,7 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
   LOG_INFO(L"Loading kernel image...");
   for (int i = 0; i < phnum; i++) {
     const Elf64_Phdr *ph = &phdr[i];
-    if (ph->p_type != PT_LOAD) {
+    if (ph->p_type != PT_LOAD || ph->p_memsz == 0) {
       continue;
     }
     TRY_EFI(uefi_call_wrapper(kernel->SetPosition, 2, kernel, ph->p_offset));
