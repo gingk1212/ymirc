@@ -1,7 +1,7 @@
 #include <stdint.h>
 
 #include "../surtrc/def.h"
-#include "arch/x86/serial.h"
+#include "serial.h"
 
 extern const uint8_t __stackguard_lower;
 
@@ -25,11 +25,10 @@ void kernel_main(BootInfo *boot_info) {
     return;
   }
 
-  init_serial(com1, 115200);
-  char *msg = "Hello, world!\n";
-  for (int i = 0; msg[i] != '\0'; i++) {
-    write_byte(msg[i], com1);
-  }
+  // Initialize the serial console
+  Serial serial[1];
+  serial_init(serial);
+  serial_write_string(serial, "Hello, world!\n");
 
   while (1) {
     __asm__ __volatile__("hlt");
