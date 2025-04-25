@@ -9,7 +9,7 @@ OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
 EFI_INC = /usr/include/efi
 EFI_INCS = -I$(EFI_INC) -I$(EFI_INC)/$(ARCH) -I$(EFI_INC)/protocol
 
-CFLAGS = -I. $(EFI_INCS) -ffreestanding -m64 -nostdlib -Wall -Wextra
+CFLAGS = -I. $(EFI_INCS) -ffreestanding -m64 -nostdlib -Wall -Wextra -std=c17
 LDFLAGS = -nostdlib -e kernel_entry -T linker.ld
 
 $(TARGET): $(OBJS)
