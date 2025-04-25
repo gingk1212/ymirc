@@ -49,4 +49,7 @@ SECTIONS {
         __stackguard_lower = .;
         . += 4K;
     } :__stackguard_lower
+
+    /DISCARD/ : {*(.eh_frame)}
+    /DISCARD/ : {*(.note.gnu.property)}
 }
