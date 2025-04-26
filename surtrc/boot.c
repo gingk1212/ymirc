@@ -98,17 +98,20 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
     if (ph->p_type != PT_LOAD || ph->p_memsz == 0) {
       continue;
     }
-    TRY_EFI(uefi_call_wrapper(kernel->SetPosition, 2, kernel, ph->p_offset));
     UINTN mem_size = ph->p_memsz;
-    TRY_EFI(read_file((void *)ph->p_vaddr, kernel, &mem_size));
+    UINTN file_size = ph->p_filesz;
+    if (file_size > 0) {
+      TRY_EFI(uefi_call_wrapper(kernel->SetPosition, 2, kernel, ph->p_offset));
+      TRY_EFI(read_file((void *)ph->p_vaddr, kernel, &file_size));
+    }
     LOG_INFO(L"  Seg @ 0x%016" PRIx64 " - 0x%016" PRIx64, ph->p_vaddr,
              ph->p_vaddr + ph->p_memsz);
 
     /** Zero-clear the BSS section. */
-    int zero_count = ph->p_memsz - ph->p_filesz;
+    int zero_count = mem_size - file_size;
     if (zero_count > 0) {
-      ZeroMem((void *)(ph->p_vaddr + ph->p_filesz), zero_count);
-      LOG_INFO(L"  Zeroed %d bytes", zero_count);
+      ZeroMem((void *)(ph->p_vaddr + file_size), zero_count);
+      LOG_INFO(L"  Zeroed 0x%x bytes", zero_count);
     }
   }
 
