@@ -24,7 +24,7 @@ static Phys allocate_pages(EFI_ALLOCATE_TYPE allocate_type,
 
 static Phys allocate_table() {
   Phys table_addr = allocate_pages(AllocateAnyPages, EfiBootServicesData, 1);
-  memset((void *)table_addr, 0, 4096);
+  ZeroMem((void *)table_addr, 4096);
   return table_addr;
 }
 
@@ -133,6 +133,6 @@ void map_4k_to(Virt virt, Phys phys) {
 void set_lv4table_writable() {
   Phys lv4table_addr = allocate_pages(AllocateAnyPages, EfiBootServicesData, 1);
   Phys cr3 = read_cr3();
-  memcpy((void *)lv4table_addr, (void *)cr3, 4096);
+  CopyMem((void *)lv4table_addr, (void *)cr3, 4096);
   load_cr3(lv4table_addr);
 }

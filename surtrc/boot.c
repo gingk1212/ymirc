@@ -107,7 +107,7 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
     /** Zero-clear the BSS section. */
     int zero_count = ph->p_memsz - ph->p_filesz;
     if (zero_count > 0) {
-      SetMem((void *)(ph->p_vaddr + ph->p_filesz), zero_count, 0);
+      ZeroMem((void *)(ph->p_vaddr + ph->p_filesz), zero_count);
       LOG_INFO(L"  Zeroed %d bytes", zero_count);
     }
   }
