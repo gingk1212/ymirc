@@ -1,16 +1,21 @@
+MAKEFLAGS += --no-print-directory
+
 all: ymirc surtrc
 
 ymirc:
-	$(MAKE) -C ymirc
+	@echo "Building ymirc..."
+	@$(MAKE) -C ymirc
 
 surtrc:
-	$(MAKE) -C surtrc
+	@echo "Building surtrc..."
+	@$(MAKE) -C surtrc
 
 run: all
-	$(MAKE) -C surtrc run
+	@$(MAKE) -C surtrc run
 
 test:
-	$(MAKE) -C ymirc test
+	@echo "Running tests..."
+	@$(MAKE) -C ymirc test
 
 clean:
 	rm -rf build
