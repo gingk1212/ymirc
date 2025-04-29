@@ -18,6 +18,7 @@ test:
 	@$(MAKE) -C ymirc test
 
 clean:
+	@echo "Cleaning up..."
 	rm -rf build
 
 .PHONY: all ymirc surtrc run test clean
