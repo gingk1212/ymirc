@@ -23,11 +23,17 @@ $(OBJ_DIR)/%.o: %.c ../surtrc/def.h bits.h log.h serial.h arch/x86/serial_impl.h
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-test: bits_test
+test: bits_test log_test
+	@echo "All tests passed."
 
 %_test: %_test.c
-	mkdir -p $(TEST_DIR)/$(@D)
-	$(CC) $(CFLAGS_FOR_TEST) $< -o $(TEST_DIR)/$@
-	./$(TEST_DIR)/$@
+	@mkdir -p $(TEST_DIR)/$(@D)
+	$(CC) $(CFLAGS_FOR_TEST) $< -o $(TEST_DIR)/$@.bin
+	./$(TEST_DIR)/$@.bin
+
+log_test:
+	@mkdir -p $(TEST_DIR)/$(@D)
+	$(CC) $(CFLAGS_FOR_TEST) log_test.c log.c -o $(TEST_DIR)/$@.bin
+	./$(TEST_DIR)/$@.bin
 
 .Phony: test
