@@ -1,6 +1,9 @@
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "../surtrc/def.h"
+#include "log.h"
 #include "serial.h"
 
 extern const uint8_t __stackguard_lower;
@@ -21,14 +24,19 @@ static int validate_boot_info(BootInfo *boot_info) {
 }
 
 void kernel_main(BootInfo *boot_info) {
-  if (validate_boot_info(boot_info)) {
-    return;
-  }
-
   // Initialize the serial console
   Serial serial[1];
   serial_init(serial);
-  serial_write_string(serial, "Hello, world!\n");
+
+  // Initialize logger
+  log_set_serial(serial);
+  LOG_INFO("Booting YmirC...\n");
+
+  // Validate the boot info
+  if (validate_boot_info(boot_info)) {
+    LOG_ERROR("Invalid boot info\n");
+    return;
+  }
 
   while (1) {
     __asm__ __volatile__("hlt");
