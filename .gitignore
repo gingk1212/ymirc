@@ -12,4 +12,6 @@
 # Built Visual Studio Code Extensions
 *.vsix
 
+.cache/
 build/
+compile_commands.json
