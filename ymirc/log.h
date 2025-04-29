@@ -1,8 +1,6 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "serial.h"
-
 typedef enum {
   LOG_LEVEL_DEBUG = 0,
   LOG_LEVEL_INFO,
@@ -15,7 +13,9 @@ typedef enum {
 #define LOG_LEVEL LOG_LEVEL_DEBUG
 #endif
 
-void log_set_serial(Serial *serial);
+typedef void (*LogWriteFn)(char c);
+
+void log_set_writefn(LogWriteFn write_fn);
 void log_printf(LogLevel level, const char *fmt, ...);
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG

@@ -3,11 +3,23 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-static Serial *serial = NULL;
+static LogWriteFn log_write_fn = NULL;
 
-void log_set_serial(Serial *s) { serial = s; }
+void log_set_writefn(LogWriteFn fn) { log_write_fn = fn; }
 
-static void serial_write_int(Serial *serial, int val) {
+static void write_char(char c) {
+  if (log_write_fn) {
+    log_write_fn(c);
+  }
+}
+
+static void write_string(const char *str) {
+  while (*str) {
+    write_char(*str++);
+  }
+}
+
+static void write_int(int val) {
   char buf[12];  // Enough for 32-bit integer
   int i = 0;
   int negative = 0;
@@ -27,12 +39,12 @@ static void serial_write_int(Serial *serial, int val) {
   }
 
   while (i--) {
-    serial_write(serial, buf[i]);
+    write_char(buf[i]);
   }
 }
 
 void log_printf(LogLevel level, const char *fmt, ...) {
-  if (serial == NULL) {
+  if (log_write_fn == NULL) {
     return;
   }
 
@@ -56,7 +68,7 @@ void log_printf(LogLevel level, const char *fmt, ...) {
       break;
   }
 
-  serial_write_string(serial, level_str);
+  write_string(level_str);
 
   va_list args;
   va_start(args, fmt);
@@ -67,24 +79,24 @@ void log_printf(LogLevel level, const char *fmt, ...) {
       switch (fmt[i]) {
         case 'd': {
           int val = va_arg(args, int);
-          serial_write_int(serial, val);
+          write_int(val);
           break;
         }
         case 's': {
           const char *str = va_arg(args, const char *);
-          serial_write_string(serial, str);
+          write_string(str);
           break;
         }
         case '%':
-          serial_write(serial, '%');
+          write_char('%');
           break;
         default:
-          serial_write(serial, '%');
-          serial_write(serial, fmt[i]);
+          write_char('%');
+          write_char(fmt[i]);
           break;
       }
     } else {
-      serial_write(serial, fmt[i]);
+      write_char(fmt[i]);
     }
   }
 

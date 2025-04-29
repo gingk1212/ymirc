@@ -8,6 +8,8 @@
 
 extern const uint8_t __stackguard_lower;
 
+static Serial serial;
+
 __attribute__((naked)) void kernel_entry(void) {
   __asm__ __volatile__(
       "movq %[new_stack], %%rsp\n\t"
@@ -23,13 +25,14 @@ static int validate_boot_info(BootInfo *boot_info) {
   return 0;
 }
 
+static void serial_log_output(char c) { serial_write(&serial, c); }
+
 void kernel_main(BootInfo *boot_info) {
   // Initialize the serial console
-  Serial serial[1];
-  serial_init(serial);
+  serial_init(&serial);
 
   // Initialize logger
-  log_set_serial(serial);
+  log_set_writefn(serial_log_output);
   LOG_INFO("Booting YmirC...\n");
 
   // Validate the boot info
