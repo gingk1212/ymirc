@@ -22,14 +22,14 @@ CFLAGS = -I. $(EFI_INCS) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone 
 LDFLAGS = -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB) $(EFI_CRT_OBJS)
 
 $(TARGET): $(OBJ_DIR)/boot.so
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .reloc --target=efi-app-$(ARCH) $< $@
 
 $(OBJ_DIR)/boot.so: $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@ -lgnuefi -lefi
 
 $(OBJ_DIR)/%.o: %.c def.h log.h arch/x86/page.h
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)

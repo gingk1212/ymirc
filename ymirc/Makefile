@@ -16,11 +16,11 @@ LDFLAGS = -nostdlib -e kernel_entry -T linker.ld
 CFLAGS_FOR_TEST = -I. -Wall -Wextra -std=c17 -g
 
 $(TARGET): $(OBJS)
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(LD) $(LDFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.o: %.c ../surtrc/def.h bits.h log.h serial.h arch/x86/serial_impl.h
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 test: bits_test
