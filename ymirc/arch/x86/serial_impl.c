@@ -5,29 +5,29 @@
 #include "serial.h"
 
 /// Transmitter Holding Buffer: DLAB=0, W
-static const int txr = 0;
+static const int txr __attribute__((unused)) = 0;
 /// Receiver Buffer: DLAB=0, R
-static const int rxr = 0;
+static const int rxr __attribute__((unused)) = 0;
 /// Divisor Latch Low Byte: DLAB=1, R/W
-static const int dll = 0;
+static const int dll __attribute__((unused)) = 0;
 /// Interrupt Enable Register: DLAB=0, R/W
-static const int ier = 1;
+static const int ier __attribute__((unused)) = 1;
 /// Divisor Latch High Byte: DLAB=1, R/W
-static const int dlh = 1;
+static const int dlh __attribute__((unused)) = 1;
 /// Interrupt Identification Register: DLAB=X, R
-static const int iir = 2;
+static const int iir __attribute__((unused)) = 2;
 /// FIFO Control Register: DLAB=X, W
-static const int fcr = 2;
+static const int fcr __attribute__((unused)) = 2;
 /// Line Control Register: DLAB=X, R/W
-static const int lcr = 3;
+static const int lcr __attribute__((unused)) = 3;
 /// Modem Control Register: DLAB=X, R/W
-static const int mcr = 4;
+static const int mcr __attribute__((unused)) = 4;
 /// Line Status Register: DLAB=X, R
-static const int lsr = 5;
+static const int lsr __attribute__((unused)) = 5;
 /// Modem Status Register: DLAB=X, R
-static const int msr = 6;
+static const int msr __attribute__((unused)) = 6;
 /// Scratch Register: DLAB=X, R/W
-static const int sr = 7;
+static const int sr __attribute__((unused)) = 7;
 
 static const int divisor_latch_numerator = 115200;
 
