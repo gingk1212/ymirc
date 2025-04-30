@@ -21,4 +21,8 @@ clean:
 	@echo "Cleaning up..."
 	rm -rf build
 
+bear:
+	@echo "Generating compilation database..."
+	bear -- make clean all test
+
 .PHONY: all ymirc surtrc run test clean
