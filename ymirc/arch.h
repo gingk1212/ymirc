@@ -1,6 +1,7 @@
-#ifndef ARCH_H
-#define ARCH_H
+#pragma once
 
+/** Perform architecture-specific initialization. */
 void arch_init();
 
-#endif  // ARCH_H
+/** Halt endlessly with interrupts disabled. */
+void endless_halt();

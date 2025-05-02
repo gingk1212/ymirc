@@ -1,3 +1,5 @@
+#include "gdt.h"
+
 #include <stdint.h>
 
 #include "bits.h"
@@ -103,10 +105,6 @@ typedef enum { byte = 0, kbyte } Granularity;
 
 #define MAX_NUM_GDT 0x10
 
-#define KERNEL_DS_INDEX 0x01
-#define KERNEL_CS_INDEX 0x02
-#define KERNEL_TSS_INDEX 0x03
-
 // Global Desscriptor Table.
 __attribute__((aligned(16))) static SegmentDescriptor gdt[MAX_NUM_GDT] = {0};
 
@@ -168,9 +166,6 @@ static void init_tss_descriptor(TssDescriptor *desc, uint64_t base,
       TSS_BASE_HIGH_MASK);
   set_masked_bits_128(&desc->value, 0, TSS_RESERVED_MASK);
 }
-
-/** RPL and TI is 0. */
-#define SEGMENT_SELECTOR(index) ((index) << 3)
 
 static inline void lgdt(Gdtr *gdtr) {
   __asm__ volatile("lgdt (%0)" : : "r"(gdtr));
