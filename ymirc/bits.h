@@ -22,4 +22,32 @@ static inline uint64_t concat(uint32_t a, uint32_t b) {
   return ((uint64_t)a << 32) | b;
 }
 
+static inline void set_masked_bits(uint64_t *target, uint64_t val,
+                                   uint64_t mask) {
+  int shift = __builtin_ctzll(mask);
+  *target = (*target & ~mask) | ((val << shift) & mask);
+}
+
+static inline uint64_t get_lower_bits(uint64_t val, uint8_t bits) {
+  if (bits >= 64) {
+    return val;
+  }
+  return val & ((1ULL << bits) - 1);
+}
+
+static inline void set_masked_bits_128(unsigned __int128 *target,
+                                       unsigned __int128 val,
+                                       unsigned __int128 mask) {
+  int shift = __builtin_ctzll(mask);
+  *target = (*target & ~mask) | ((val << shift) & mask);
+}
+
+static inline unsigned __int128 get_lower_bits_128(unsigned __int128 val,
+                                                   uint8_t bits) {
+  if (bits >= 128) {
+    return val;
+  }
+  return val & ((1ULL << bits) - 1);
+}
+
 #endif  // BITS_H

@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "../surtrc/def.h"
+#include "arch.h"
 #include "log.h"
 #include "serial.h"
 
@@ -34,6 +35,9 @@ void kernel_main(BootInfo *boot_info) {
   // Initialize logger
   log_set_writefn(serial_log_output);
   LOG_INFO("Booting YmirC...\n");
+
+  // Perform architecture-specific initialization
+  arch_init();
 
   // Validate the boot info
   if (validate_boot_info(boot_info)) {
