@@ -2,6 +2,9 @@ ARCH = x86_64
 
 CC = gcc
 LD = ld
+ifneq (, $(shell command -v ld.lld 2>/dev/null))
+	LD = ld.lld
+endif
 OBJCOPY = objcopy
 
 OBJ_DIR = ../build/surtrc
@@ -14,12 +17,11 @@ OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS = $(OBJS:%.o=%.d)
 
 EFI_INC = /usr/include/efi
-EFI_INCS = -I$(EFI_INC) -I$(EFI_INC)/$(ARCH) -I$(EFI_INC)/protocol
 EFI_LIB = /usr/lib
 EFI_CRT_OBJS = $(EFI_LIB)/crt0-efi-$(ARCH).o
 EFI_LDS = $(EFI_LIB)/elf_$(ARCH)_efi.lds
 
-CFLAGS = -I. $(EFI_INCS) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -std=c17 -MMD -MP -DLOG_LEVEL=0
+CFLAGS = -I. -I$(EFI_INC) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -std=c17 -MMD -MP -DLOG_LEVEL=0
 LDFLAGS = -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB) $(EFI_CRT_OBJS)
 
 $(TARGET): $(OBJ_DIR)/boot.so
