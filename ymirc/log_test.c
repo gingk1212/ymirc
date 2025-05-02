@@ -30,6 +30,15 @@ int main() {
   assert(strcmp(log_buffer, "[INFO ] Test message: 42\n") == 0);
   reset_buffer();
 
+  log_printf(LOG_LEVEL_WARN, "Test message: 0x%x\n", 42);
+  assert(strcmp(log_buffer, "[WARN ] Test message: 0x0000002A\n") == 0);
+  reset_buffer();
+
+  void *ptr = (void *)0x123456789A;
+  log_printf(LOG_LEVEL_DEBUG, "Test message: %p\n", ptr);
+  assert(strcmp(log_buffer, "[DEBUG] Test message: 0x000000123456789A\n") == 0);
+  reset_buffer();
+
   log_printf(LOG_LEVEL_ERROR, "Test message: %s\n", "Hello");
   assert(strcmp(log_buffer, "[ERROR] Test message: Hello\n") == 0);
   reset_buffer();

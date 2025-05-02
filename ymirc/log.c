@@ -1,6 +1,7 @@
 #include "log.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 static LogWriteFn log_write_fn = NULL;
@@ -43,6 +44,27 @@ static void write_int(int val) {
   }
 }
 
+// TODO: support negative hex values
+// TODO: strip leading zeros
+static void write_hex(uint32_t value) {
+  const char *hex = "0123456789ABCDEF";
+  // 32 bits = 4 bits x 8
+  for (int i = 7; i >= 0; i--) {
+    write_char(hex[(value >> (i * 4)) & 0xF]);
+  }
+}
+
+static void write_ptr(void *ptr) {
+  const char *hex = "0123456789ABCDEF";
+  uintptr_t value = (uint64_t)ptr;
+
+  write_char('0');
+  write_char('x');
+  for (int i = sizeof(uintptr_t) * 2 - 1; i >= 0; i--) {
+    write_char(hex[(value >> (i * 4)) & 0xF]);
+  }
+}
+
 void log_printf(LogLevel level, const char *fmt, ...) {
   if (log_write_fn == NULL) {
     return;
@@ -80,6 +102,16 @@ void log_printf(LogLevel level, const char *fmt, ...) {
         case 'd': {
           int val = va_arg(args, int);
           write_int(val);
+          break;
+        }
+        case 'x': {
+          uint32_t val = va_arg(args, uint32_t);
+          write_hex(val);
+          break;
+        }
+        case 'p': {
+          void *ptr = va_arg(args, void *);
+          write_ptr(ptr);
           break;
         }
         case 's': {
