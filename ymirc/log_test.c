@@ -31,7 +31,7 @@ int main() {
   reset_buffer();
 
   log_printf(LOG_LEVEL_WARN, "Test message: 0x%x\n", 42);
-  assert(strcmp(log_buffer, "[WARN ] Test message: 0x0000002A\n") == 0);
+  assert(strcmp(log_buffer, "[WARN ] Test message: 0x000000000000002A\n") == 0);
   reset_buffer();
 
   void *ptr = (void *)0x123456789A;

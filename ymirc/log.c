@@ -46,10 +46,10 @@ static void write_int(int val) {
 
 // TODO: support negative hex values
 // TODO: strip leading zeros
-static void write_hex(uint32_t value) {
+static void write_hex(uint64_t value) {
   const char *hex = "0123456789ABCDEF";
-  // 32 bits = 4 bits x 8
-  for (int i = 7; i >= 0; i--) {
+  // 64 bits = 4 bits x 16
+  for (int i = 15; i >= 0; i--) {
     write_char(hex[(value >> (i * 4)) & 0xF]);
   }
 }
@@ -105,7 +105,7 @@ void log_printf(LogLevel level, const char *fmt, ...) {
           break;
         }
         case 'x': {
-          uint32_t val = va_arg(args, uint32_t);
+          uint64_t val = va_arg(args, uint64_t);
           write_hex(val);
           break;
         }
