@@ -5,6 +5,7 @@
 #include "../surtrc/def.h"
 #include "arch.h"
 #include "log.h"
+#include "page_allocator.h"
 #include "serial.h"
 
 extern const uint8_t __stackguard_lower;
@@ -44,6 +45,10 @@ void kernel_main(BootInfo *boot_info) {
     LOG_ERROR("Invalid boot info\n");
     return;
   }
+
+  // Initialize page allocator
+  page_allocator_init(&boot_info->map);
+  LOG_INFO("Initialized page allocator.\n");
 
   while (1) {
     __asm__ __volatile__("hlt");

@@ -28,7 +28,7 @@ $(OBJ_DIR)/%.o: %.c
 
 -include $(DEPS)
 
-test: bits_test log_test
+test: bits_test log_test page_allocator_test
 	@echo "All tests passed."
 
 %_test: %_test.c
@@ -39,6 +39,11 @@ test: bits_test log_test
 log_test:
 	@mkdir -p $(TEST_DIR)/$(@D)
 	$(CC) $(CFLAGS_FOR_TEST) log_test.c log.c -o $(TEST_DIR)/$@.bin
+	./$(TEST_DIR)/$@.bin
+
+page_allocator_test:
+	@mkdir -p $(TEST_DIR)/$(@D)
+	$(CC) $(CFLAGS_FOR_TEST) -I$(EFI_INC) page_allocator_test.c page_allocator.c log.c -o $(TEST_DIR)/$@.bin
 	./$(TEST_DIR)/$@.bin
 
 .Phony: test
