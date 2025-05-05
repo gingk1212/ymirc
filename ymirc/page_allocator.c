@@ -6,6 +6,7 @@
 
 #include "bits.h"
 #include "log.h"
+#include "mem.h"
 
 /** Page size. */
 #define PAGE_SIZE (4096ULL)
@@ -26,8 +27,6 @@ typedef uint64_t MapLineType;
 /** Bitmap. */
 static MapLineType bitmap[NUM_MAPLINES] = {0};
 
-typedef uint64_t Phys;
-typedef uint64_t Virt;
 typedef uint64_t FrameId;
 
 /** First frame ID. Frame ID 0 is reserved. */
@@ -72,8 +71,6 @@ static void mark_not_used(FrameId frame, uint64_t num_frames) {
 
 static inline FrameId phys2frame(Phys phys) { return phys / PAGE_SIZE; }
 static inline Phys frame2phys(FrameId frame) { return frame * PAGE_SIZE; }
-static inline Phys virt2phys(uintptr_t addr) { return addr; }
-static inline Virt phys2virt(uintptr_t addr) { return addr; }
 
 /** Check if the memory region described by the descriptor is usable for ymirc
  * kernel.
@@ -135,7 +132,7 @@ void *mem_alloc(size_t n) {
     }
     if (i == num_frames) {
       mark_allocated(start_frame, num_frames);
-      return (void *)(uintptr_t)phys2virt(frame2phys(start_frame));
+      return (void *)phys2virt(frame2phys(start_frame));
     }
     start_frame += i + 1;
   }
@@ -145,7 +142,7 @@ void *mem_alloc(size_t n) {
 // FIXME: Check if the memory region is usable for ymirc kernel.
 void mem_free(void *ptr, size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
-  Virt start_frame_vaddr = (Virt)(uintptr_t)ptr & ~PAGE_MASK;
+  Virt start_frame_vaddr = (Virt)ptr & ~PAGE_MASK;
   FrameId start_frame = phys2frame(virt2phys(start_frame_vaddr));
   if (start_frame + num_frames > frame_end) {
     LOG_ERROR("Invalid free: %p\n", ptr);
@@ -171,7 +168,7 @@ void *mem_alloc_pages(size_t num_pages, size_t align_size) {
     }
     if (i == num_frames) {
       mark_allocated(start_frame, num_frames);
-      return (void *)(uintptr_t)phys2virt(frame2phys(start_frame));
+      return (void *)phys2virt(frame2phys(start_frame));
     }
     start_frame += align_frame;
     if (start_frame + num_frames >= frame_end) return NULL;
