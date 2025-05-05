@@ -50,6 +50,10 @@ void kernel_main(BootInfo *boot_info) {
   page_allocator_init(&boot_info->map);
   LOG_INFO("Initialized page allocator.\n");
 
+  // Reconstruct memory mapping from the one provided by UEFI and SutrC.
+  LOG_INFO("Reconstructing memory mapping...\n");
+  reconstruct_mapping();
+
   while (1) {
     __asm__ __volatile__("hlt");
   }

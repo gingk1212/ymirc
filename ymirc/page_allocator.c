@@ -8,10 +8,6 @@
 #include "log.h"
 #include "mem.h"
 
-/** Page size. */
-#define PAGE_SIZE (4096ULL)
-/** Page mask. */
-#define PAGE_MASK (PAGE_SIZE - 1)
 /** Maximum physical memory size in bytes that can be managed by this allocator.
  */
 #define MAX_PHYSICAL_SIZE (128ULL * 1024 * 1024 * 1024)  // 128GiB

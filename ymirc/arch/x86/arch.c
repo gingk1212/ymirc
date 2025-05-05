@@ -1,5 +1,6 @@
 #include "arch.h"
 
+#include "arch/x86/page.h"
 #include "gdt.h"
 #include "interrupt.h"
 #include "log.h"
@@ -10,6 +11,8 @@ void arch_init() {
   itr_init();
   LOG_INFO("Initialized IDT.\n");
 }
+
+void reconstruct_mapping() { reconstruct(); }
 
 void endless_halt() {
   __asm__ volatile("cli");
