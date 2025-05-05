@@ -7,9 +7,9 @@
 #include "log.h"
 
 void log_output(char c) { putchar(c); }
+void log_no_output(char c) { (void)c; }
 
 MemoryMap* create_memory_map() {
-  log_set_writefn(log_output);
   MemoryMap* map = malloc(sizeof(MemoryMap));
   map->descriptor_size = sizeof(EFI_MEMORY_DESCRIPTOR);
   map->map_size = map->descriptor_size * 5;  // Example size
@@ -43,6 +43,7 @@ MemoryMap* create_memory_map() {
 }
 
 int main() {
+  log_set_writefn(log_output);
   MemoryMap* map = create_memory_map();
   page_allocator_init(map);
   assert(mem_alloc(0x1000) == (void*)0x1000);  // Frame ID 0 is reserved.
@@ -62,6 +63,9 @@ int main() {
 
   assert(mem_alloc_pages(1, 0x2000) == (void*)0x6000);
   mem_free((void*)0x6000, 0x1000);
+
+  log_set_writefn(log_no_output);
+  assert(mem_alloc_pages(1, 0x1100) == NULL);
 
   return 0;
 }

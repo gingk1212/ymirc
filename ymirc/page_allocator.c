@@ -156,6 +156,10 @@ void mem_free(void *ptr, size_t n) {
 
 /** Allocate physically contiguous and aligned pages. */
 void *mem_alloc_pages(size_t num_pages, size_t align_size) {
+  if (align_size % PAGE_SIZE != 0) {
+    LOG_ERROR("Invalid alignment size: 0x%x\n", align_size);
+    return NULL;
+  }
   size_t num_frames = num_pages;
   size_t align_frame = (align_size + PAGE_SIZE - 1) / PAGE_SIZE;
   FrameId start_frame = align_frame;
