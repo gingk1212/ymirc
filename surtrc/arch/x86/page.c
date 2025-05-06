@@ -80,6 +80,10 @@ static void load_cr3(uintptr_t value) {
   __asm__ volatile("mov %0, %%cr3" : : "r"(value));
 }
 
+static inline void flush_tbl_single(uintptr_t virt) {
+  __asm__ volatile("invlpg (%0)" : : "r"(virt));
+}
+
 static const int lv4_shift = 39;
 static const int lv3_shift = 30;
 static const int lv2_shift = 21;
@@ -135,4 +139,27 @@ void set_lv4table_writable() {
   Phys cr3 = read_cr3();
   CopyMem((void *)lv4table_addr, (void *)cr3, 4096);
   load_cr3(lv4table_addr);
+}
+
+/** Change the attribute of the 4KiB page. */
+void change_map_4k(Virt virt, PageAttribute attr) {
+  Entry *lv4ent = get_entry_address(virt, read_cr3(), level4);
+  Entry *lv3ent = get_entry_address(virt, lv4ent->value & PHYS_MASK, level3);
+  Entry *lv2ent = get_entry_address(virt, lv3ent->value & PHYS_MASK, level2);
+  Entry *lv1ent = get_entry_address(virt, lv2ent->value & PHYS_MASK, level1);
+  switch (attr) {
+    case read_only:
+      lv1ent->value &= ~BIT(ENTRY_RW);
+      lv1ent->value |= BIT(ENTRY_XD);
+      break;
+    case read_write:
+      lv1ent->value |= BIT(ENTRY_RW);
+      lv1ent->value |= BIT(ENTRY_XD);
+      break;
+    case executable:
+      lv1ent->value &= ~BIT(ENTRY_RW);
+      lv1ent->value &= ~BIT(ENTRY_XD);
+      break;
+  }
+  flush_tbl_single(virt);
 }

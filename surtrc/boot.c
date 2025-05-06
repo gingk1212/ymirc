@@ -89,6 +89,16 @@ compute_kernel_memory_range(Virt *start_virt, Phys *start_phys, Phys *end_phys,
   return EFI_SUCCESS;
 }
 
+static PageAttribute read_p_flags(uint32_t flags) {
+  if ((flags & PF_X) != 0) {
+    return executable;
+  } else if ((flags & PF_W) != 0) {
+    return read_write;
+  } else {
+    return read_only;
+  }
+}
+
 /** Loads PT_LOAD segments of kernel ELF file to memory. */
 EFI_STATUS
 load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
@@ -112,6 +122,16 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
     if (zero_count > 0) {
       ZeroMem((void *)(ph->p_vaddr + file_size), zero_count);
       LOG_INFO(L"  Zeroed 0x%x bytes", zero_count);
+    }
+
+    // Change memory protection.
+    Virt page_start = ph->p_vaddr & ~((uint64_t)EFI_PAGE_MASK);
+    Virt page_end = (ph->p_vaddr + ph->p_memsz + (EFI_PAGE_SIZE - 1)) &
+                    ~(uint64_t)EFI_PAGE_MASK;
+    uint64_t size = (page_end - page_start) / EFI_PAGE_SIZE;
+    PageAttribute attr = read_p_flags(ph->p_flags);
+    for (uint64_t i = 0; i < size; i++) {
+      change_map_4k(page_start + EFI_PAGE_SIZE * i, attr);
     }
   }
 
