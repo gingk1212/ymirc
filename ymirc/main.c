@@ -6,6 +6,7 @@
 #include "arch.h"
 #include "log.h"
 #include "page_allocator.h"
+#include "panic.h"
 #include "serial.h"
 
 extern const uint8_t __stackguard_lower;
@@ -42,8 +43,7 @@ void kernel_main(BootInfo *boot_info) {
 
   // Validate the boot info
   if (validate_boot_info(boot_info)) {
-    LOG_ERROR("Invalid boot info\n");
-    return;
+    panic("Invalid boot info.");
   }
 
   // Initialize page allocator

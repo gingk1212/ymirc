@@ -5,6 +5,7 @@
 #include "bits.h"
 #include "mem.h"
 #include "page_allocator.h"
+#include "panic.h"
 
 /** Size mapped by a single Level 4 page table entry (512GiB) */
 #define LV4_ENTRY_MAPPING_SIZE (512ULL * 1024 * 1024 * 1024)
@@ -50,6 +51,9 @@ typedef struct {
 
 static PageTable *allocate_table() {
   PageTable *table_addr = mem_alloc_pages(1, PAGE_SIZE);
+  if (!table_addr) {
+    panic("Failed to allocate memory for the page table.");
+  }
   for (uint64_t i = 0; i < NUM_TABLE_ENTRIES; i++) {
     table_addr->entries[i].value = 0;
   }

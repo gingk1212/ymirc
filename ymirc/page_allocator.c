@@ -7,6 +7,7 @@
 #include "bits.h"
 #include "log.h"
 #include "mem.h"
+#include "panic.h"
 
 /** Maximum physical memory size in bytes that can be managed by this allocator.
  */
@@ -141,8 +142,7 @@ void mem_free(void *ptr, size_t n) {
   Virt start_frame_vaddr = (Virt)ptr & ~PAGE_MASK;
   FrameId start_frame = phys2frame(virt2phys(start_frame_vaddr));
   if (start_frame + num_frames > frame_end) {
-    LOG_ERROR("Invalid free: %p\n", ptr);
-    return;
+    panic("Invalid free.");
   }
   mark_not_used(start_frame, num_frames);
 }
