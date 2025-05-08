@@ -118,7 +118,7 @@ void page_allocator_init(MemoryMap *map) {
   frame_end = phys2frame(avail_end);
 }
 
-void *mem_alloc(size_t n) {
+void *page_allocator_alloc(size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
   FrameId start_frame = frame_begin;
   while (1) {
@@ -137,7 +137,7 @@ void *mem_alloc(size_t n) {
 
 // FIXME: Size should not be passed.
 // FIXME: Check if the memory region is usable for ymirc kernel.
-void mem_free(void *ptr, size_t n) {
+void page_allocator_free(void *ptr, size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
   Virt start_frame_vaddr = (Virt)ptr & ~PAGE_MASK;
   FrameId start_frame = phys2frame(virt2phys(start_frame_vaddr));
@@ -148,7 +148,7 @@ void mem_free(void *ptr, size_t n) {
 }
 
 /** Allocate physically contiguous and aligned pages. */
-void *mem_alloc_pages(size_t num_pages, size_t align_size) {
+void *page_allocator_alloc_pages(size_t num_pages, size_t align_size) {
   if (align_size % PAGE_SIZE != 0) {
     LOG_ERROR("Invalid alignment size: 0x%x\n", align_size);
     return NULL;

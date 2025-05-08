@@ -46,26 +46,27 @@ int main() {
   log_set_writefn(log_output);
   MemoryMap* map = create_memory_map();
   page_allocator_init(map);
-  assert(mem_alloc(0x1000) == (void*)0x1000);  // Frame ID 0 is reserved.
-  assert(mem_alloc(0x1000) == (void*)0x3000);
-  assert(mem_alloc(0x1000) == (void*)0x5000);
-  mem_free((void*)0x1000, 0x1000);
-  assert(mem_alloc(0x1000) == (void*)0x1000);
-  mem_free((void*)0x1000, 0x1000);
-  mem_free((void*)0x3000, 0x1000);
-  mem_free((void*)0x5000, 0x1000);
+  assert(page_allocator_alloc(0x1000) ==
+         (void*)0x1000);  // Frame ID 0 is reserved.
+  assert(page_allocator_alloc(0x1000) == (void*)0x3000);
+  assert(page_allocator_alloc(0x1000) == (void*)0x5000);
+  page_allocator_free((void*)0x1000, 0x1000);
+  assert(page_allocator_alloc(0x1000) == (void*)0x1000);
+  page_allocator_free((void*)0x1000, 0x1000);
+  page_allocator_free((void*)0x3000, 0x1000);
+  page_allocator_free((void*)0x5000, 0x1000);
 
-  assert(mem_alloc(0x4000) == (void*)0x5000);
-  assert(mem_alloc(0x4000) == (void*)0x9000);
-  assert(mem_alloc(0x4000) == NULL);
-  mem_free((void*)0x5000, 0x4000);
-  mem_free((void*)0x9000, 0x4000);
+  assert(page_allocator_alloc(0x4000) == (void*)0x5000);
+  assert(page_allocator_alloc(0x4000) == (void*)0x9000);
+  assert(page_allocator_alloc(0x4000) == NULL);
+  page_allocator_free((void*)0x5000, 0x4000);
+  page_allocator_free((void*)0x9000, 0x4000);
 
-  assert(mem_alloc_pages(1, 0x2000) == (void*)0x6000);
-  mem_free((void*)0x6000, 0x1000);
+  assert(page_allocator_alloc_pages(1, 0x2000) == (void*)0x6000);
+  page_allocator_free((void*)0x6000, 0x1000);
 
   log_set_writefn(log_no_output);
-  assert(mem_alloc_pages(1, 0x1100) == NULL);
+  assert(page_allocator_alloc_pages(1, 0x1100) == NULL);
 
   return 0;
 }

@@ -50,7 +50,7 @@ typedef struct {
 #define PHYS_MASK (MASK(51) << ENTRY_PHYS)
 
 static PageTable *allocate_table() {
-  PageTable *table_addr = mem_alloc_pages(1, PAGE_SIZE);
+  PageTable *table_addr = page_allocator_alloc_pages(1, PAGE_SIZE);
   if (!table_addr) {
     panic("Failed to allocate memory for the page table.");
   }
