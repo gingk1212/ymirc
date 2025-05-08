@@ -1,5 +1,6 @@
 #include "page.h"
 
+#include <assert.h>
 #include <stdint.h>
 
 #include "bits.h"
@@ -9,6 +10,12 @@
 
 /** Size mapped by a single Level 4 page table entry (512GiB) */
 #define LV4_ENTRY_MAPPING_SIZE (512ULL * 1024 * 1024 * 1024)
+
+/** Constraint for simplicity */
+static_assert(DIRECT_MAP_BASE % LV4_ENTRY_MAPPING_SIZE == 0,
+              "DIRECT_MAP_BASE must be multiple of LV4_ENTRY_MAPPING_SIZE.");
+static_assert(DIRECT_MAP_SIZE % LV4_ENTRY_MAPPING_SIZE == 0,
+              "DIRECT_MAP_SIZE must be multiple of LV4_ENTRY_MAPPING_SIZE.");
 
 /** Shift in bits to extract the level-4 index from a virtual address. */
 static const int lv4_shift = 39;

@@ -11,12 +11,10 @@
 #define PAGE_MASK (PAGE_SIZE - 1)
 
 /** Base virtual address of direct mapping. The virtual address starting from
- * the address is directly mapped to the physical address at 0x0. In YmirC, must
- * be aligned to LV4_ENTRY_MAPPING_SIZE (in x86) for simplicity. */
+ * the address is directly mapped to the physical address at 0x0. */
 #define DIRECT_MAP_BASE 0xFFFF888000000000ULL
 
-/** Size in bytes of the direct mapping region. In YmirC, must be aligned to
- * LV4_ENTRY_MAPPING_SIZE (in x86) for simplicity. */
+/** Size in bytes of the direct mapping region. */
 #define DIRECT_MAP_SIZE (512ULL * 1024 * 1024 * 1024)
 
 /** The base virtual address of the kernel. The virtual address strating from
