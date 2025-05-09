@@ -160,7 +160,7 @@ void page_allocator_init(MemoryMap *map) {
   frame_end = phys2frame(avail_end);
 }
 
-void *page_allocator_alloc(size_t n) {
+static void *alloc(size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
   FrameId start_frame = frame_begin;
   while (1) {
@@ -178,7 +178,7 @@ void *page_allocator_alloc(size_t n) {
 }
 
 // FIXME: Size should not be passed.
-void page_allocator_free(void *ptr, size_t n) {
+static void free(void *ptr, size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
   Virt start_frame_vaddr = (Virt)ptr & ~PAGE_MASK;
   FrameId start_frame = phys2frame(virt2phys(start_frame_vaddr));
@@ -190,7 +190,7 @@ void page_allocator_free(void *ptr, size_t n) {
 }
 
 /** Allocate physically contiguous and aligned pages. */
-void *page_allocator_alloc_pages(size_t num_pages, size_t align_size) {
+static void *alloc_aligned_pages(size_t num_pages, size_t align_size) {
   if (align_size % PAGE_SIZE != 0) {
     LOG_ERROR("Invalid alignment size: 0x%x\n", align_size);
     return NULL;
@@ -212,3 +212,9 @@ void *page_allocator_alloc_pages(size_t num_pages, size_t align_size) {
     if (start_frame + num_frames >= frame_end) return NULL;
   }
 }
+
+const page_allocator_ops_t pa_ops = {
+    .alloc = alloc,
+    .free = free,
+    .alloc_aligned_pages = alloc_aligned_pages,
+};

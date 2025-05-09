@@ -12,7 +12,7 @@ void arch_init() {
   LOG_INFO("Initialized IDT.\n");
 }
 
-void reconstruct_mapping() { reconstruct(); }
+void reconstruct_mapping(const page_allocator_ops_t *ops) { reconstruct(ops); }
 
 void disable_intr() { __asm__ volatile("cli"); }
 

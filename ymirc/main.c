@@ -52,7 +52,7 @@ void kernel_main(BootInfo *boot_info) {
 
   // Reconstruct memory mapping from the one provided by UEFI and SutrC.
   LOG_INFO("Reconstructing memory mapping...\n");
-  reconstruct_mapping();
+  reconstruct_mapping(&pa_ops);
 
   while (1) {
     __asm__ __volatile__("hlt");

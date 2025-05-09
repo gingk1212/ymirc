@@ -47,28 +47,27 @@ int main() {
   MemoryMap* map = create_memory_map();
   page_allocator_init(map);
 
-  assert(page_allocator_alloc(0x1000) ==
-         (void*)0x1000);  // Frame ID 0 is reserved.
-  assert(page_allocator_alloc(0x1000) == (void*)0x3000);
-  assert(page_allocator_alloc(0x1000) == (void*)0x5000);
-  page_allocator_free((void*)0x1000, 0x1000);
-  assert(page_allocator_alloc(0x1000) == (void*)0x1000);
-  page_allocator_free((void*)0x1000, 0x1000);
-  page_allocator_free((void*)0x3000, 0x1000);
-  page_allocator_free((void*)0x5000, 0x1000);
+  assert(pa_ops.alloc(0x1000) == (void*)0x1000);  // Frame ID 0 is reserved.
+  assert(pa_ops.alloc(0x1000) == (void*)0x3000);
+  assert(pa_ops.alloc(0x1000) == (void*)0x5000);
+  pa_ops.free((void*)0x1000, 0x1000);
+  assert(pa_ops.alloc(0x1000) == (void*)0x1000);
+  pa_ops.free((void*)0x1000, 0x1000);
+  pa_ops.free((void*)0x3000, 0x1000);
+  pa_ops.free((void*)0x5000, 0x1000);
 
-  assert(page_allocator_alloc(0x4000) == (void*)0x5000);
-  assert(page_allocator_alloc(0x4000) == (void*)0x9000);
-  assert(page_allocator_alloc(0x4000) == NULL);
-  page_allocator_free((void*)0x5000, 0x4000);
-  page_allocator_free((void*)0x9000, 0x4000);
+  assert(pa_ops.alloc(0x4000) == (void*)0x5000);
+  assert(pa_ops.alloc(0x4000) == (void*)0x9000);
+  assert(pa_ops.alloc(0x4000) == NULL);
+  pa_ops.free((void*)0x5000, 0x4000);
+  pa_ops.free((void*)0x9000, 0x4000);
 
-  assert(page_allocator_alloc_pages(1, 0x2000) == (void*)0x6000);
-  page_allocator_free((void*)0x6000, 0x1000);
+  assert(pa_ops.alloc_aligned_pages(1, 0x2000) == (void*)0x6000);
+  pa_ops.free((void*)0x6000, 0x1000);
 
   log_set_writefn(log_no_output);
   // align size must be multiple of page size.
-  assert(page_allocator_alloc_pages(1, 0x1100) == NULL);
+  assert(pa_ops.alloc_aligned_pages(1, 0x1100) == NULL);
 
   return 0;
 }

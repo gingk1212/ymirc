@@ -5,7 +5,6 @@
 
 #include "bits.h"
 #include "mem.h"
-#include "page_allocator.h"
 #include "panic.h"
 
 /** Size mapped by a single Level 4 page table entry (512GiB) */
@@ -56,8 +55,10 @@ typedef struct {
 #define MASK(width) ((1ULL << (width)) - 1)
 #define PHYS_MASK (MASK(51) << ENTRY_PHYS)
 
+static const page_allocator_ops_t *pa;
+
 static PageTable *allocate_table() {
-  PageTable *table_addr = page_allocator_alloc_pages(1, PAGE_SIZE);
+  PageTable *table_addr = pa->alloc_aligned_pages(1, PAGE_SIZE);
   if (!table_addr) {
     panic("Failed to allocate memory for the page table.");
   }
@@ -140,7 +141,11 @@ static PageTable *clone_lv3_table(PageTable *lv3tbl) {
 
 /** Directly map all memory with offset. After calling this function, it is safe
  * to unmap direct mappings. */
-void reconstruct() {
+void reconstruct(const page_allocator_ops_t *ops) {
+  if (ops == NULL) {
+    panic("Page allocator ops must be set for page table reconstructing.");
+  }
+  pa = ops;
   PageTable *lv4tbl = allocate_table();
   const uint64_t lv4idx_start = (DIRECT_MAP_BASE >> lv4_shift) & index_mask;
   const uint64_t lv4idx_end = lv4idx_start + (DIRECT_MAP_SIZE >> lv4_shift);
