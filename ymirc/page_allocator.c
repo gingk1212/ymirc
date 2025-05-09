@@ -31,6 +31,43 @@ static FrameId frame_begin = 1;
 /** First frame ID that is not managed by this allocator. */
 static FrameId frame_end;
 
+/** Reserved region for UEFI firmware use. */
+typedef struct {
+  FrameId frame;
+  uint64_t num_frames;
+} UefiReservedRegion;
+
+/** Maximum number of UEFI reserved regions. This value must be large enough to
+ * cover all reserved areas. If this limit is exceeded, the system will panic.
+ * Increase this value if more reserved regions are required. */
+#define MAX_UEFI_RESERVED_RESIONS 1024
+
+static UefiReservedRegion reserved_regions[MAX_UEFI_RESERVED_RESIONS];
+static size_t reserved_region_count;
+
+static void add_reserved_region(FrameId frame, uint64_t num_frames) {
+  if (reserved_region_count >= MAX_UEFI_RESERVED_RESIONS) {
+    panic("The count of memory region reserved by UEFI exceeds the limit.");
+  }
+  reserved_regions[reserved_region_count++] =
+      (UefiReservedRegion){frame, num_frames};
+}
+
+/** Checks whether the specified memory range overlaps with any region reserved
+ * by UEFI. */
+static bool overlaps_reserved(FrameId frame, uint64_t num_frames) {
+  FrameId start = frame;
+  FrameId end = frame + num_frames;
+  for (uint64_t i = 0; i < reserved_region_count; i++) {
+    FrameId r_start = reserved_regions[i].frame;
+    FrameId r_end = r_start + reserved_regions[i].num_frames;
+    if (start < r_end && end > r_start) {
+      return true;
+    }
+  }
+  return false;
+}
+
 typedef enum {
   // Page frame is in use.
   used,
@@ -66,6 +103,11 @@ static void mark_not_used(FrameId frame, uint64_t num_frames) {
   }
 }
 
+static void mark_uefi_reserved(FrameId frame, uint64_t num_frames) {
+  mark_allocated(frame, num_frames);
+  add_reserved_region(frame, num_frames);
+}
+
 static inline FrameId phys2frame(Phys phys) { return phys / PAGE_SIZE; }
 static inline Phys frame2phys(FrameId frame) { return frame * PAGE_SIZE; }
 
@@ -92,12 +134,12 @@ void page_allocator_init(MemoryMap *map) {
     // Mark holes between regions as allocated (used).
     if (phys_end < desc->PhysicalStart) {
       if (desc->PhysicalStart >= MAX_PHYSICAL_SIZE) {
-        mark_allocated(phys2frame(phys_end),
-                       (MAX_PHYSICAL_SIZE - phys_end) / PAGE_SIZE);
+        mark_uefi_reserved(phys2frame(phys_end),
+                           (MAX_PHYSICAL_SIZE - phys_end) / PAGE_SIZE);
         break;
       } else {
-        mark_allocated(phys2frame(phys_end),
-                       (desc->PhysicalStart - phys_end) / PAGE_SIZE);
+        mark_uefi_reserved(phys2frame(phys_end),
+                           (desc->PhysicalStart - phys_end) / PAGE_SIZE);
       }
     }
     phys_end = desc->PhysicalStart + desc->NumberOfPages * PAGE_SIZE;
@@ -105,14 +147,14 @@ void page_allocator_init(MemoryMap *map) {
     if (phys_end >= MAX_PHYSICAL_SIZE) {
       // If the end address exceeds the maximum physical memory, mark up to the
       // maximum as used.
-      mark_allocated(phys2frame(desc->PhysicalStart),
-                     (MAX_PHYSICAL_SIZE - desc->PhysicalStart) / PAGE_SIZE);
+      mark_uefi_reserved(phys2frame(desc->PhysicalStart),
+                         (MAX_PHYSICAL_SIZE - desc->PhysicalStart) / PAGE_SIZE);
       break;
     } else if (is_usable_memory(desc)) {
       avail_end = phys_end;
       mark_not_used(phys2frame(desc->PhysicalStart), desc->NumberOfPages);
     } else {
-      mark_allocated(phys2frame(desc->PhysicalStart), desc->NumberOfPages);
+      mark_uefi_reserved(phys2frame(desc->PhysicalStart), desc->NumberOfPages);
     }
   }
   frame_end = phys2frame(avail_end);
@@ -136,13 +178,13 @@ void *page_allocator_alloc(size_t n) {
 }
 
 // FIXME: Size should not be passed.
-// FIXME: Check if the memory region is usable for ymirc kernel.
 void page_allocator_free(void *ptr, size_t n) {
   size_t num_frames = (n + PAGE_SIZE - 1) / PAGE_SIZE;
   Virt start_frame_vaddr = (Virt)ptr & ~PAGE_MASK;
   FrameId start_frame = phys2frame(virt2phys(start_frame_vaddr));
-  if (start_frame + num_frames > frame_end) {
-    panic("Invalid free.");
+  if (overlaps_reserved(start_frame, num_frames)) {
+    panic("Attempting to free memory reserved by UEFI firmware.");
+    return;
   }
   mark_not_used(start_frame, num_frames);
 }

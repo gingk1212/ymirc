@@ -46,6 +46,7 @@ int main() {
   log_set_writefn(log_output);
   MemoryMap* map = create_memory_map();
   page_allocator_init(map);
+
   assert(page_allocator_alloc(0x1000) ==
          (void*)0x1000);  // Frame ID 0 is reserved.
   assert(page_allocator_alloc(0x1000) == (void*)0x3000);
@@ -66,6 +67,7 @@ int main() {
   page_allocator_free((void*)0x6000, 0x1000);
 
   log_set_writefn(log_no_output);
+  // align size must be multiple of page size.
   assert(page_allocator_alloc_pages(1, 0x1100) == NULL);
 
   return 0;
