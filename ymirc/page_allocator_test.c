@@ -69,5 +69,7 @@ int main() {
   // align size must be multiple of page size.
   assert(pa_ops.alloc_aligned_pages(1, 0x1100) == NULL);
 
+  puts("PASS");
+
   return 0;
 }
