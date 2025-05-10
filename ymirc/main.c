@@ -4,6 +4,7 @@
 
 #include "../surtrc/def.h"
 #include "arch.h"
+#include "bin_allocator.h"
 #include "log.h"
 #include "page_allocator.h"
 #include "panic.h"
@@ -53,6 +54,10 @@ void kernel_main(BootInfo *boot_info) {
   // Reconstruct memory mapping from the one provided by UEFI and SutrC.
   LOG_INFO("Reconstructing memory mapping...\n");
   reconstruct_mapping(&pa_ops);
+
+  // Initialize general allocator
+  init_bin_allocator(&pa_ops);
+  LOG_INFO("Initialized general allocator.\n");
 
   while (1) {
     __asm__ __volatile__("hlt");

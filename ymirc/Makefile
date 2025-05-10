@@ -28,7 +28,7 @@ $(OBJ_DIR)/%.o: %.c
 
 -include $(DEPS)
 
-test: bits_test log_test page_allocator_test
+test: bin_allocator_test bits_test log_test page_allocator_test
 	@echo "All tests passed."
 
 %_test: %_test.c $(OBJS)
