@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdnoreturn.h>
+
 #include "page_allocator_if.h"
 
 /** Perform architecture-specific initialization. */
@@ -13,7 +15,7 @@ void reconstruct_mapping(const page_allocator_ops_t *ops);
 void disable_intr();
 
 /** Halt endlessly with interrupts disabled. */
-void endless_halt();
+noreturn void endless_halt();
 
 /** Print the stack trace. */
 void print_stack_trace();

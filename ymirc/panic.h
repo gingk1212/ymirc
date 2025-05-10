@@ -1,3 +1,5 @@
 #pragma once
 
-void panic(const char *msg);
+#include <stdnoreturn.h>
+
+noreturn void panic(const char *msg);

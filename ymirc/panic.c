@@ -8,7 +8,7 @@
 /** Flag to indicate that a panic occurred. */
 static bool panicked = false;
 
-void panic(const char *msg) {
+noreturn void panic(const char *msg) {
   disable_intr();
   LOG_ERROR("PANIC: %s\n", msg);
 

@@ -16,7 +16,7 @@ void reconstruct_mapping(const page_allocator_ops_t *ops) { reconstruct(ops); }
 
 void disable_intr() { __asm__ volatile("cli"); }
 
-void endless_halt() {
+noreturn void endless_halt() {
   disable_intr();
   while (1) {
     __asm__ volatile("hlt");
