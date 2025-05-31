@@ -1,6 +1,7 @@
 #include "serial_impl.h"
 
 #include <stdint.h>
+#include <sys/io.h>
 
 #include "serial.h"
 
@@ -30,16 +31,6 @@ static const int msr __attribute__((unused)) = 6;
 static const int sr __attribute__((unused)) = 7;
 
 static const int divisor_latch_numerator = 115200;
-
-static uint8_t inb(int port) {
-  uint8_t ret;
-  __asm__ __volatile__("inb %1, %0" : "=a"(ret) : "Nd"(port));
-  return ret;
-}
-
-static void outb(uint8_t value, int port) {
-  __asm__ __volatile__("outb %0, %1" : : "a"(value), "Nd"(port));
-}
 
 static void write_byte(uint8_t byte, Ports port) {
   // Wait for the transmitter holding register to be empty
