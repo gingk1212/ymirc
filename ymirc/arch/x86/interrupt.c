@@ -13,9 +13,6 @@ typedef void (*Handler)(Context *ctx);
 /** Interrupt handlers. */
 static Handler handlers[MAX_NUM_GATES] = {0};
 
-/** Set the interrupt flag */
-static inline void sti() { __asm__ volatile("sti"); }
-
 static char *exception_name(uint64_t vector);
 static void unhandled_handler(Context *ctx);
 
@@ -28,7 +25,7 @@ void itr_init() {
 
   idt_init();
 
-  sti();
+  enable_intr();
 }
 
 /** Called from the ISR stub. Dispatches the interrupt to the appropriate

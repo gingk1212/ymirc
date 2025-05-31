@@ -14,6 +14,7 @@ void arch_init() {
 
 void reconstruct_mapping(const page_allocator_ops_t *ops) { reconstruct(ops); }
 
+void enable_intr() { __asm__ volatile("sti"); }
 void disable_intr() { __asm__ volatile("cli"); }
 
 noreturn void endless_halt() {

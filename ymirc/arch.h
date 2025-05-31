@@ -11,6 +11,9 @@ void arch_init();
  * creates two mappings: direct mapping and kernel text mapping. */
 void reconstruct_mapping(const page_allocator_ops_t *ops);
 
+/** Enable interrupts. */
+void enable_intr();
+
 /** Disable interrupts. */
 void disable_intr();
 
