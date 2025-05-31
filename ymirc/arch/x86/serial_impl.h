@@ -13,4 +13,7 @@ typedef enum {
 
 void serial_impl_init(Serial *serial, Ports port, uint32_t baud);
 
+/** Enable serial console interrupt for Rx-available and Tx-empty. */
+void enable_serial_interrupt_impl(Ports port);
+
 #endif  // ARCH_X86_SERIAL_IMPL_H

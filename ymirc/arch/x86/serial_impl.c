@@ -71,3 +71,9 @@ void serial_impl_init(Serial *serial, Ports port, uint32_t baud) {
       break;
   }
 }
+
+void enable_serial_interrupt_impl(Ports port) {
+  uint8_t ie = inb(port + ier);
+  ie |= 0b00000011;  // Rx-available, Tx-empty
+  outb(ie, port + ier);
+}

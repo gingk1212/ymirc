@@ -10,6 +10,11 @@
 #include "panic.h"
 #include "serial.h"
 
+#if defined(__x86_64__)
+#include "arch/x86/interrupt.h"
+#include "arch/x86/pic.h"
+#endif
+
 extern const uint8_t __stackguard_lower;
 
 static Serial serial;
@@ -30,6 +35,13 @@ static int validate_boot_info(BootInfo *boot_info) {
 }
 
 static void serial_log_output(char c) { serial_write(&serial, c); }
+
+#if defined(__x86_64__)
+static void blob_irq_handler(Context *ctx) {
+  uint16_t vector = ctx->vector - primary_vector_offset;
+  notify_eoi(vector);
+}
+#endif
 
 void kernel_main(BootInfo *boot_info) {
   // Initialize the serial console
@@ -58,6 +70,22 @@ void kernel_main(BootInfo *boot_info) {
   // Initialize general allocator
   init_bin_allocator(&pa_ops);
   LOG_INFO("Initialized general allocator.\n");
+
+  // Initialize PIC.
+  pic_init();
+  LOG_INFO("Initialized PIC.\n");
+
+#if defined(__x86_64__)
+  // Enable PIT.
+  register_handler(irq_timer + primary_vector_offset, blob_irq_handler);
+  unset_mask(irq_timer);
+  LOG_INFO("Enabled PIT.\n");
+
+  // Unmask serial interrupt.
+  register_handler(irq_serial1 + primary_vector_offset, blob_irq_handler);
+  unset_mask(irq_serial1);
+  enable_serial_interrupt();
+#endif
 
   while (1) {
     __asm__ __volatile__("hlt");

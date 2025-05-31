@@ -25,4 +25,7 @@ static inline void serial_write_string(Serial* serial, const char* str) {
 
 static inline uint8_t serial_read(Serial* serial) { return serial->read_fn(); }
 
+/** Enable serial console interrupt. */
+void enable_serial_interrupt();
+
 #endif  // SERIAL_H

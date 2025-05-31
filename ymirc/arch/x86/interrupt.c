@@ -7,9 +7,6 @@
 #include "isr.h"
 #include "log.h"
 
-/** Interrupt handler function signature. */
-typedef void (*Handler)(Context *ctx);
-
 /** Interrupt handlers. */
 static Handler handlers[MAX_NUM_GATES] = {0};
 
@@ -33,6 +30,11 @@ void itr_init() {
 void itr_dispatch(Context *ctx) {
   uint64_t vector = ctx->vector;
   handlers[vector](ctx);
+}
+
+/** Register interrupt handler. */
+void register_handler(uint8_t vector, Handler handler) {
+  handlers[vector] = handler;
 }
 
 static void unhandled_handler(Context *ctx) {
