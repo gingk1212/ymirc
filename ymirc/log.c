@@ -65,7 +65,7 @@ static void write_ptr(void *ptr) {
   }
 }
 
-void log_printf(LogLevel level, const char *fmt, ...) {
+void log_printf(int level, const char *fmt, ...) {
   if (log_write_fn == NULL) {
     return;
   }

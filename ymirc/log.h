@@ -1,13 +1,11 @@
 #ifndef LOG_H
 #define LOG_H
 
-typedef enum {
-  LOG_LEVEL_DEBUG = 0,
-  LOG_LEVEL_INFO,
-  LOG_LEVEL_WARN,
-  LOG_LEVEL_ERROR,
-  LOG_LEVEL_NONE,
-} LogLevel;
+#define LOG_LEVEL_DEBUG 0
+#define LOG_LEVEL_INFO 1
+#define LOG_LEVEL_WARN 2
+#define LOG_LEVEL_ERROR 3
+#define LOG_LEVEL_NONE 4
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL LOG_LEVEL_DEBUG
@@ -16,7 +14,7 @@ typedef enum {
 typedef void (*LogWriteFn)(char c);
 
 void log_set_writefn(LogWriteFn write_fn);
-void log_printf(LogLevel level, const char *fmt, ...);
+void log_printf(int level, const char *fmt, ...);
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 #define LOG_DEBUG(fmt, ...) log_printf(LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
