@@ -71,11 +71,11 @@ void kernel_main(BootInfo *boot_info) {
   init_bin_allocator(&pa_ops);
   LOG_INFO("Initialized general allocator.\n");
 
+#if defined(__x86_64__)
   // Initialize PIC.
   pic_init();
   LOG_INFO("Initialized PIC.\n");
 
-#if defined(__x86_64__)
   // Enable PIT.
   register_handler(irq_timer + primary_vector_offset, blob_irq_handler);
   unset_mask(irq_timer);
