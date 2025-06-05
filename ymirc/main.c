@@ -13,6 +13,7 @@
 #if defined(__x86_64__)
 #include "arch/x86/interrupt.h"
 #include "arch/x86/pic.h"
+#include "arch/x86/vm.h"
 #endif
 
 extern const uint8_t __stackguard_lower;
@@ -85,6 +86,11 @@ void kernel_main(BootInfo *boot_info) {
   register_handler(irq_serial1 + primary_vector_offset, blob_irq_handler);
   unset_mask(irq_serial1);
   enable_serial_interrupt();
+
+  // Enable SVM extensions.
+  Vm vm = vm_new();
+  vm_init(&vm);
+  LOG_INFO("Enabled SVM extensions.\n");
 #endif
 
   while (1) {
