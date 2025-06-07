@@ -87,12 +87,22 @@ void kernel_main(BootInfo *boot_info) {
   unset_mask(irq_serial1);
   enable_serial_interrupt();
 
-  // Enable SVM extensions.
+  // Create VM instance.
   Vm vm = vm_new();
-  vm_init(&vm);
-  LOG_INFO("Enabled SVM extensions.\n");
+  if (vm.error != VM_SUCESS) {
+    LOG_ERROR("Failed to create VM instance.\n");
+  } else {
+    // Enable SVM extensions.
+    vm_init(&vm, &pa_ops);
+    LOG_INFO("Enabled SVM extensions.\n");
+
+    // Launch
+    LOG_INFO("Starting the virtual machine...\n");
+    vm_loop(&vm);
+  }
 #endif
 
+  LOG_WARN("End of Life...\n");
   while (1) {
     __asm__ __volatile__("hlt");
   }

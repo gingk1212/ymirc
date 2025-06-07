@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "arch.h"
 #include "asm.h"
 #include "log.h"
 #include "mem.h"
@@ -52,26 +53,41 @@ static bool is_svm_supported() {
 }
 
 Vm vm_new() {
+  Vm vm = (Vm){.error = VM_SUCESS};
+
   // Check CPU vendor.
   uint8_t vendor[12];
   get_cpu_vendor_id(vendor);
-  if (memcmp(vendor, "AuthenticAMD", 12) != 0) {
+  if (memcmp(vendor, "AuthenticAMD", 12) == 0) {
+    vm.vtype = VIRTUALIZE_TYPE_SVM;
+  } else {
     LOG_ERROR("Unsupported CPU vendor: %s\n", vendor);
     return (Vm){.error = VM_ERROR_SYSTEM_NOT_SUPPORTED};
   }
 
-  // Check if SVM is supported.
-  if (!is_svm_supported()) {
-    LOG_ERROR("Virtualization is not supported.\n");
-    return (Vm){.error = VM_ERROR_SYSTEM_NOT_SUPPORTED};
+  if (vm.vtype == VIRTUALIZE_TYPE_SVM) {
+    // Check if SVM is supported.
+    if (!is_svm_supported()) {
+      LOG_ERROR("Virtualization is not supported.\n");
+      return (Vm){.error = VM_ERROR_SYSTEM_NOT_SUPPORTED};
+    }
+
+    vm.svmvcpu = svm_vcpu_new(1);
   }
 
-  Vcpu vcpu = vcpu_new(1);
-
-  return (Vm){.error = VM_SUCESS, .vcpu = vcpu};
+  return vm;
 }
 
-void vm_init(Vm *vm) {
-  vcpu_virtualize(&vm->vcpu);
-  LOG_INFO("vCPU #%d is created.\n", vm->vcpu.id);
+void vm_init(Vm *vm, const page_allocator_ops_t *pa_ops) {
+  // Initialize vCPU.
+  svm_vcpu_virtualize(&vm->svmvcpu, pa_ops);
+  LOG_INFO("vCPU #%d is created.\n", vm->svmvcpu.id);
+
+  // Setup VMCB.
+  svm_vcpu_setup_vmcb(&vm->svmvcpu);
+}
+
+void vm_loop(Vm *vm) {
+  disable_intr();
+  svm_vcpu_loop(&vm->svmvcpu);
 }

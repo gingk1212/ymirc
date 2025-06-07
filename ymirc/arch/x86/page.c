@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "asm.h"
 #include "bits.h"
 #include "mem.h"
 #include "panic.h"
@@ -84,16 +85,6 @@ static void initialize_page_reference_entry(Entry *entry, Phys phys) {
   set_masked_bits(&entry->value, 0, tobit(ENTRY_US));
   set_masked_bits(&entry->value, 1, tobit(ENTRY_PS));
   set_masked_bits(&entry->value, phys >> ENTRY_PHYS, PHYS_MASK);
-}
-
-static uintptr_t read_cr3(void) {
-  uintptr_t cr3;
-  __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
-  return cr3;
-}
-
-static void load_cr3(uintptr_t value) {
-  __asm__ volatile("mov %0, %%cr3" : : "r"(value));
 }
 
 static PageTable *clone_lv1_table(PageTable *lv1tbl) {
