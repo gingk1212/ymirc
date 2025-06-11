@@ -71,7 +71,7 @@ static void vmexit_handler(Vmcb *vmcb) {
 void svm_vcpu_loop(SvmVcpu *vcpu) {
   __asm__ volatile(
       "mov %0, %%rax\n\t"
-      "vmrun %%rax\n\t"
+      "vmrun\n\t"
       :
       : "r"(virt2phys((uintptr_t)vcpu->vmcb))
       : "rax", "memory");
