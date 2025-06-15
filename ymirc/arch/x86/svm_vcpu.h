@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "page_allocator_if.h"
+#include "svm_common.h"
 #include "svm_vmcb.h"
 
 typedef struct {
@@ -13,6 +14,10 @@ typedef struct {
   uint16_t asid;
   /** VMCB (Virtual Machine Control Block). */
   Vmcb *vmcb;
+  /** Physical address of VMCB. */
+  uintptr_t vmcb_phys;
+  /** Saved guest registers. */
+  GuestRegisters guest_regs;
 } SvmVcpu;
 
 /** Create a new virtual CPU. This function does not virtualize the CPU. You

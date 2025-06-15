@@ -8,76 +8,9 @@
 #include "log.h"
 #include "mem.h"
 #include "panic.h"
+#include "svm_asm.h"
 
-static void setup_vmcb_seg(Vmcb *vmcb);
 __attribute__((naked)) noreturn void blob_guest();
-
-SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
-
-void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
-  // Write to VM_HSAVE_PA MSR.
-  void *hsave = pa_ops->alloc(PAGE_SIZE);
-  if (!hsave) {
-    panic("Failed to allocate memory for saving host state.");
-  }
-  write_msr(0xC0010117, virt2phys((uintptr_t)hsave));
-
-  // Allocate VMCB region.
-  void *vmcb = pa_ops->alloc_aligned_pages(1, PAGE_SIZE);
-  if (!vmcb) {
-    panic("Failed to allocate memory for VMCB.");
-  }
-  memset(vmcb, 0, PAGE_SIZE);
-  vcpu->vmcb = vmcb;
-
-  // Extended Feature Enable Register (EFER)
-  uint64_t efer = read_msr(0xC0000080);
-  efer |= 1ULL << 12;  // 12: EFFR.SVME bit
-  write_msr(0xC0000080, efer);
-}
-
-void svm_vcpu_setup_vmcb(SvmVcpu *vcpu) {
-  Vmcb *vmcb = vcpu->vmcb;
-
-  // VMRUN intercept bit must be set.
-  vmcb->intercept_vmrun = 1;
-
-  // ASID
-  vmcb->guest_asid = vcpu->asid;
-
-  // Segment registers.
-  setup_vmcb_seg(vmcb);
-
-  // EFER
-  vmcb->efer = read_msr(0xC0000080);
-
-  // Control registers
-  vmcb->cr4 = (uint64_t)read_cr4();
-  vmcb->cr3 = (uint64_t)read_cr3();
-  vmcb->cr0 = (uint64_t)read_cr0();
-
-  // RIP
-  vmcb->rip = (uint64_t)&blob_guest;
-}
-
-static void vmexit_handler(Vmcb *vmcb) {
-  LOG_DEBUG("[VMEXIT handler]\n");
-  LOG_DEBUG("  EXITCODE=0x%x\n", vmcb->exitcode);
-  LOG_DEBUG("  EXITINFO1=0x%x\n", vmcb->exitinfo1);
-  LOG_DEBUG("  EXITINFO2=0x%x\n", vmcb->exitinfo2);
-  endless_halt();
-}
-
-void svm_vcpu_loop(SvmVcpu *vcpu) {
-  __asm__ volatile(
-      "mov %0, %%rax\n\t"
-      "vmrun\n\t"
-      :
-      : "r"(virt2phys((uintptr_t)vcpu->vmcb))
-      : "rax", "memory");
-
-  vmexit_handler(vcpu->vmcb);
-}
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
  * of bits 55:52 and 47:40 from the original 64-bit (in-memory) segment
@@ -114,6 +47,126 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
   // CS
   vmcb->cs.attr = (uint16_t)cs_attrib;
   vmcb->cs.base = 0xDEAD00;  // Marker to indicate the guest.
+}
+
+SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
+
+void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
+  // Write to VM_HSAVE_PA MSR.
+  void *hsave = pa_ops->alloc(PAGE_SIZE);
+  if (!hsave) {
+    panic("Failed to allocate memory for saving host state.");
+  }
+  write_msr(0xC0010117, virt2phys((uintptr_t)hsave));
+
+  // Allocate VMCB region.
+  void *vmcb = pa_ops->alloc_aligned_pages(1, PAGE_SIZE);
+  if (!vmcb) {
+    panic("Failed to allocate memory for VMCB.");
+  }
+  memset(vmcb, 0, PAGE_SIZE);
+  vcpu->vmcb = vmcb;
+  vcpu->vmcb_phys = virt2phys((uintptr_t)vmcb);
+
+  // Extended Feature Enable Register (EFER)
+  uint64_t efer = read_msr(0xC0000080);
+  efer |= 1ULL << 12;  // 12: EFFR.SVME bit
+  write_msr(0xC0000080, efer);
+}
+
+void svm_vcpu_setup_vmcb(SvmVcpu *vcpu) {
+  Vmcb *vmcb = vcpu->vmcb;
+
+  // VMRUN intercept bit must be set.
+  vmcb->intercept_vmrun = 1;
+
+  // ASID
+  vmcb->guest_asid = vcpu->asid;
+
+  // Segment registers.
+  setup_vmcb_seg(vmcb);
+
+  // EFER
+  vmcb->efer = read_msr(0xC0000080);
+
+  // Control registers
+  vmcb->cr4 = (uint64_t)read_cr4();
+  vmcb->cr3 = (uint64_t)read_cr3();
+  vmcb->cr0 = (uint64_t)read_cr0();
+
+  // RIP
+  vmcb->rip = (uint64_t)&blob_guest;
+
+  // Intercept HLT
+  vmcb->intercept_hlt = 1;
+}
+
+static void print_guest_state(SvmVcpu *vcpu) {
+  LOG_ERROR("=== vCPU Information ===\n");
+  LOG_ERROR("[Guest State]\n");
+  LOG_ERROR("RIP: 0x%x\n", vcpu->vmcb->rip);
+  LOG_ERROR("RSP: 0x%x\n", vcpu->vmcb->rsp);
+  LOG_ERROR("RAX: 0x%x\n", vcpu->vmcb->rax);
+  LOG_ERROR("RBX: 0x%x\n", vcpu->guest_regs.rbx);
+  LOG_ERROR("RCX: 0x%x\n", vcpu->guest_regs.rcx);
+  LOG_ERROR("RDX: 0x%x\n", vcpu->guest_regs.rdx);
+  LOG_ERROR("RSI: 0x%x\n", vcpu->guest_regs.rsi);
+  LOG_ERROR("RDI: 0x%x\n", vcpu->guest_regs.rdi);
+  LOG_ERROR("RBP: 0x%x\n", vcpu->guest_regs.rbp);
+  LOG_ERROR("R8 : 0x%x\n", vcpu->guest_regs.r8);
+  LOG_ERROR("R9 : 0x%x\n", vcpu->guest_regs.r9);
+  LOG_ERROR("R10: 0x%x\n", vcpu->guest_regs.r10);
+  LOG_ERROR("R11: 0x%x\n", vcpu->guest_regs.r11);
+  LOG_ERROR("R12: 0x%x\n", vcpu->guest_regs.r12);
+  LOG_ERROR("R13: 0x%x\n", vcpu->guest_regs.r13);
+  LOG_ERROR("R14: 0x%x\n", vcpu->guest_regs.r14);
+  LOG_ERROR("R15: 0x%x\n", vcpu->guest_regs.r15);
+  LOG_ERROR("CR0: 0x%x\n", vcpu->vmcb->cr0);
+  LOG_ERROR("CR3: 0x%x\n", vcpu->vmcb->cr3);
+  LOG_ERROR("CR4: 0x%x\n", vcpu->vmcb->cr4);
+  LOG_ERROR("EFER:0x%x\n", vcpu->vmcb->efer);
+  LOG_ERROR("CS : 0x%x 0x%x 0x%x\n", vcpu->vmcb->cs.sel, vcpu->vmcb->cs.base,
+            vcpu->vmcb->cs.limit);
+}
+
+/** Dump guest state. */
+static void dump(SvmVcpu *vcpu) { print_guest_state(vcpu); }
+
+static noreturn void abort(SvmVcpu *vcpu) {
+  dump(vcpu);
+  endless_halt();
+}
+
+/** Increment RIP. */
+static void step_next_inst(Vmcb *vmcb) { vmcb->rip = vmcb->nrip; }
+
+/** Handle the #VMEXIT. */
+static void handle_exit(SvmVcpu *vcpu) {
+  switch (vcpu->vmcb->exitcode) {
+    case SVM_EXIT_CODE_HLT:
+      LOG_DEBUG("HLT\n");
+      step_next_inst(vcpu->vmcb);
+      break;
+    default:
+      abort(vcpu);
+  }
+}
+
+void svm_vcpu_loop(SvmVcpu *vcpu) {
+  // Start endless VMRUN / #VMEXIT loop.
+  while (1) {
+    // VMRUN. Clobbers all caller-saved registers since this inline assembly
+    // performs a function call.
+    __asm__ volatile(
+        "mov %0, %%rdi\n\t"
+        "call asm_vmrun"
+        :
+        : "r"(vcpu)
+        : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
+
+    // Handle #VMEXIT
+    handle_exit(vcpu);
+  }
 }
 
 __attribute__((naked)) noreturn void blob_guest() {
