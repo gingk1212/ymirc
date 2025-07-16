@@ -96,6 +96,10 @@ void kernel_main(BootInfo *boot_info) {
     vm_init(&vm, &pa_ops);
     LOG_INFO("Enabled SVM extensions.\n");
 
+    // Setup guest memory.
+    setup_guest_memory(&vm, &pa_ops);
+    LOG_INFO("Setup guest memory.\n");
+
     // Launch
     LOG_INFO("Starting the virtual machine...\n");
     vm_loop(&vm);

@@ -18,6 +18,7 @@ typedef struct {
   VmError error;
   VirtualizeType vtype;
   SvmVcpu svmvcpu;
+  uint8_t *guest_mem;
 } Vm;
 
 /** Create a new virtual machine instance. You MUST initialize the VM before
@@ -29,3 +30,6 @@ void vm_init(Vm *vm, const page_allocator_ops_t *pa_ops);
 
 /** Kick off the virtual machine. */
 void vm_loop(Vm *vm);
+
+/** Setup guest memory. */
+void setup_guest_memory(Vm *vm, const page_allocator_ops_t *pa_ops);

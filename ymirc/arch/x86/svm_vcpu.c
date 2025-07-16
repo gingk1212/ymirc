@@ -6,7 +6,6 @@
 #include "asm.h"
 #include "bits.h"
 #include "log.h"
-#include "mem.h"
 #include "panic.h"
 #include "svm_asm.h"
 
@@ -46,7 +45,7 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
 
   // CS
   vmcb->cs.attr = (uint16_t)cs_attrib;
-  vmcb->cs.base = 0xDEAD00;  // Marker to indicate the guest.
+  vmcb->cs.limit = UINT32_MAX;
 }
 
 SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
@@ -83,22 +82,36 @@ void svm_vcpu_setup_vmcb(SvmVcpu *vcpu) {
   // ASID
   vmcb->guest_asid = vcpu->asid;
 
+  // Enable nested paging.
+  vmcb->np_enable = 1;
+
   // Segment registers.
   setup_vmcb_seg(vmcb);
 
   // EFER
-  vmcb->efer = read_msr(0xC0000080);
+  Efer efer = {0};
+  efer.value = (uint64_t)read_msr(0xC0000080);
+  efer.lme = 0;  // Long Mode Enable
+  efer.lma = 0;  // Long Mode Active
+  vmcb->efer = efer.value;
 
-  // Control registers
+  // Cr4
   vmcb->cr4 = (uint64_t)read_cr4();
+
+  // Cr3
   vmcb->cr3 = (uint64_t)read_cr3();
-  vmcb->cr0 = (uint64_t)read_cr0();
 
-  // RIP
-  vmcb->rip = (uint64_t)&blob_guest;
+  // Cr0
+  Cr0 cr0 = {0};
+  cr0.pe = 1;  // Protection Enabled
+  cr0.ne = 1;  // Numeric Error
+  cr0.pg = 0;  // Paging
+  vmcb->cr0 = cr0.value;
+}
 
-  // Intercept HLT
-  vmcb->intercept_hlt = 1;
+void svm_vcpu_set_npt(SvmVcpu *vcpu, Phys n_cr3, void *host_start) {
+  vcpu->vmcb->n_cr3 = n_cr3;
+  vcpu->guest_base = virt2phys((uintptr_t)host_start);
 }
 
 static void print_guest_state(SvmVcpu *vcpu) {
@@ -127,6 +140,10 @@ static void print_guest_state(SvmVcpu *vcpu) {
   LOG_ERROR("EFER:0x%x\n", vcpu->vmcb->efer);
   LOG_ERROR("CS : 0x%x 0x%x 0x%x\n", vcpu->vmcb->cs.sel, vcpu->vmcb->cs.base,
             vcpu->vmcb->cs.limit);
+  LOG_ERROR("=== #VMEXIT Information ===\n");
+  LOG_ERROR("EXITCODE : 0x%x\n", vcpu->vmcb->exitcode);
+  LOG_ERROR("EXITINFO1: 0x%x\n", vcpu->vmcb->exitinfo1);
+  LOG_ERROR("EXITINFO2: 0x%x\n", vcpu->vmcb->exitinfo2);
 }
 
 /** Dump guest state. */
@@ -153,6 +170,11 @@ static void handle_exit(SvmVcpu *vcpu) {
 }
 
 void svm_vcpu_loop(SvmVcpu *vcpu) {
+  // Copy blob_guest() to the guest memory at physical address 0x0.
+  void *guest_map = (void *)phys2virt(vcpu->guest_base);
+  memcpy(guest_map, (void *)blob_guest, 0x20);
+  vcpu->vmcb->rip = 0x0;
+
   // Start endless VMRUN / #VMEXIT loop.
   while (1) {
     // VMRUN. Clobbers all caller-saved registers since this inline assembly

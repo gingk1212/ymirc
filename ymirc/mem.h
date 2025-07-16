@@ -6,6 +6,8 @@
 
 /** Page size. */
 #define PAGE_SIZE 4096ULL
+#define PAGE_SIZE_2MB (PAGE_SIZE << 9)
+#define PAGE_SIZE_1GB (PAGE_SIZE_2MB << 9)
 
 /** Page mask. */
 #define PAGE_MASK (PAGE_SIZE - 1)
