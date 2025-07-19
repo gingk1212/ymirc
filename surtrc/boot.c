@@ -117,7 +117,7 @@ load_segment(const EFI_FILE_HANDLE kernel, const Elf64_Phdr *phdr, int phnum) {
     LOG_INFO(L"  Seg @ 0x%016" PRIx64 " - 0x%016" PRIx64, ph->p_vaddr,
              ph->p_vaddr + ph->p_memsz);
 
-    /** Zero-clear the BSS section. */
+    // Zero-clear the BSS section.
     int zero_count = mem_size - file_size;
     if (zero_count > 0) {
       ZeroMem((void *)(ph->p_vaddr + file_size), zero_count);
@@ -143,17 +143,17 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   InitializeLib(image_handle, system_table);
   TRY_EFI(uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut));
 
-  /** Open volume. */
+  // Open volume.
   EFI_FILE_HANDLE root_dir[1];
   TRY_EFI(open_volume(root_dir, image_handle));
   LOG_INFO(L"Opened filesystem volume.");
 
-  /** Open kernel file. */
+  // Open kernel file.
   EFI_FILE_HANDLE kernel[1];
   TRY_EFI(open_file(kernel, root_dir[0], L"ymirc.elf", EFI_FILE_MODE_READ));
   LOG_INFO(L"Opened kernel file.");
 
-  /** Read kernel ELF header. */
+  // Read kernel ELF header.
   UINTN header_size = sizeof(Elf64_Ehdr);
   Elf64_Ehdr *header_buffer = AllocatePool(header_size);
   if (!header_buffer) {
@@ -169,11 +169,11 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   LOG_DEBUG(L"  # of Program Headers: %" PRIu16, header_buffer->e_phnum);
   LOG_DEBUG(L"  # of Section Headers: %" PRIu16, header_buffer->e_shnum);
 
-  /** Set Level 4 page table writable. */
+  // Set Level 4 page table writable.
   set_lv4table_writable();
   LOG_DEBUG(L"Set page table writable.");
 
-  /** Read kernel EFL program headers. */
+  // Read kernel ELF program headers.
   TRY_EFI(uefi_call_wrapper(kernel[0]->SetPosition, 2, kernel[0],
                             header_buffer->e_phoff));
   UINTN phsize = header_buffer->e_phnum * header_buffer->e_phentsize;
@@ -185,7 +185,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   TRY_EFI(read_file(ph_buffer, kernel[0], &phsize));
   LOG_INFO(L"Read kernel ELF program headers.");
 
-  /** Compute necessary memory size for kernel image. */
+  // Compute necessary memory size for kernel image.
   Virt start_virt;
   Phys start_phys, end_phys;
   TRY_EFI(compute_kernel_memory_range(&start_virt, &start_phys, &end_phys,
@@ -194,29 +194,29 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   LOG_INFO(L"Kernel image: 0x%016" PRIx64 " - 0x%016" PRIx64 " (0x%x pages)",
            start_phys, end_phys, pages_4kib);
 
-  /** Allocate memory for kernel image. */
+  // Allocate memory for kernel image.
   TRY_EFI(uefi_call_wrapper(BS->AllocatePages, 4, AllocateAddress,
                             EfiLoaderData, pages_4kib, &start_phys));
   LOG_INFO(L"Allocated memory for kernel image @ 0x%016" PRIx64
            " ~ 0x%016" PRIx64,
            start_phys, start_phys + pages_4kib * EFI_PAGE_SIZE);
 
-  /** Map memory for kernel image. */
+  // Map memory for kernel image.
   for (int i = 0; i < pages_4kib; i++) {
     map_4k_to(start_virt + i * EFI_PAGE_SIZE, start_phys + i * EFI_PAGE_SIZE);
   }
   LOG_INFO(L"Mapped memory for kernel image.");
 
-  /** Load kernel image. */
+  // Load kernel image.
   TRY_EFI(load_segment(kernel[0], ph_buffer, header_buffer->e_phnum));
 
-  /** Clean up memory. */
+  // Clean up memory.
   FreePool(header_buffer);
   FreePool(ph_buffer);
   TRY_EFI(uefi_call_wrapper(kernel[0]->Close, 1, kernel[0]));
   TRY_EFI(uefi_call_wrapper(root_dir[0]->Close, 1, root_dir[0]));
 
-  /** Get memory map. */
+  // Get memory map.
   int map_buffer_size = EFI_PAGE_SIZE * 4;
   UINT8 map_buffer[map_buffer_size];
   MemoryMap map = {
@@ -228,7 +228,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
                             &map.map_key, &map.descriptor_size,
                             &map.descriptor_version));
 
-  /** Print memory map. */
+  // Print memory map.
   LOG_DEBUG(L"Memory Map (Physical): Buf=0x%" PRIx64 ", MapSize=0x%" PRIx64
             ", DescSize=0x%" PRIx64,
             map.descriptors, map.map_size, map.descriptor_size);
@@ -242,7 +242,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
               desc->Type);
   }
 
-  /** Exit boot service. */
+  // Exit boot service.
   LOG_INFO(L"Exiting boot services.");
   EFI_STATUS status =
       uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, map.map_key);
@@ -255,7 +255,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
         uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, map.map_key));
   }
 
-  /** Jump to kernel entry point. */
+  // Jump to kernel entry point.
   typedef void (*KernelEntryType)(BootInfo *);
   KernelEntryType kernel_entry = (KernelEntryType)(e_entry);
   BootInfo boot_info = {
@@ -264,6 +264,6 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   };
   kernel_entry(&boot_info);
 
-  /** noreachable */
+  // noreachable
   return EFI_SUCCESS;
 }
