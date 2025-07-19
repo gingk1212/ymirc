@@ -57,11 +57,15 @@ void kernel_main(BootInfo *boot_info) {
     panic("Invalid boot info.");
   }
 
+  // Copy boot_info into YmirC's stack since it becomes inaccessible soon.
+  MemoryMap memory_map = boot_info->map;
+  GuestInfo guest_info = boot_info->guest_info;
+
   // Perform architecture-specific initialization
   arch_init();
 
   // Initialize page allocator
-  page_allocator_init(&boot_info->map);
+  page_allocator_init(&memory_map);
   LOG_INFO("Initialized page allocator.\n");
 
   // Reconstruct memory mapping from the one provided by UEFI and SutrC.
@@ -96,8 +100,9 @@ void kernel_main(BootInfo *boot_info) {
     vm_init(&vm, &pa_ops);
     LOG_INFO("Enabled SVM extensions.\n");
 
-    // Setup guest memory.
-    setup_guest_memory(&vm, &pa_ops);
+    // Setup guest memory and load kernel.
+    void *guest_kernel = (void *)phys2virt((uintptr_t)guest_info.guest_image);
+    setup_guest_memory(&vm, guest_kernel, guest_info.guest_size, &pa_ops);
     LOG_INFO("Setup guest memory.\n");
 
     // Launch
