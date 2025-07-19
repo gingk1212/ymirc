@@ -57,6 +57,14 @@ read_file(void *buffer, EFI_FILE_HANDLE file_handle, UINTN *size) {
   return EFI_SUCCESS;
 }
 
+/** Get file size. */
+UINT64 file_size(EFI_FILE_HANDLE file_handle) {
+  EFI_FILE_INFO *file_info = LibFileInfo(file_handle);
+  UINT64 size = file_info->FileSize;
+  FreePool(file_info);
+  return size;
+}
+
 /** Computes a memory range of PT_LOAD segments in the kernel ELF file. */
 EFI_STATUS
 compute_kernel_memory_range(Virt *start_virt, Phys *start_phys, Phys *end_phys,
@@ -210,6 +218,24 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   // Load kernel image.
   TRY_EFI(load_segment(kernel[0], ph_buffer, header_buffer->e_phnum));
 
+  // Open guest kernel image.
+  EFI_FILE_HANDLE guest[1];
+  TRY_EFI(open_file(guest, root_dir[0], L"bzImage", EFI_FILE_MODE_READ));
+  LOG_INFO(L"Opened guest kennel file.");
+
+  // Get guest kernel image size.
+  UINT64 guest_size = file_size(guest[0]);
+  LOG_INFO(L"Guest kernel size: 0x%x bytes.", guest_size);
+
+  // Load guest kernel image.
+  Phys guest_start;
+  UINT64 guest_size_pages = (guest_size + (EFI_PAGE_SIZE - 1)) / EFI_PAGE_SIZE;
+  TRY_EFI(uefi_call_wrapper(BS->AllocatePages, 4, AllocateAnyPages,
+                            EfiLoaderData, guest_size_pages, &guest_start));
+  TRY_EFI(read_file((void *)guest_start, guest[0], &guest_size));
+  LOG_INFO(L"Loaded guest kernel image @ 0x%016" PRIx64 " ~ 0x%016" PRIx64,
+           guest_start, guest_start + guest_size);
+
   // Clean up memory.
   FreePool(header_buffer);
   FreePool(ph_buffer);
@@ -261,6 +287,11 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   BootInfo boot_info = {
       .magic = MAGIC,
       .map = map,
+      .guest_info =
+          {
+              .guest_image = (void *)guest_start,
+              .guest_size = guest_size,
+          },
   };
   kernel_entry(&boot_info);
 

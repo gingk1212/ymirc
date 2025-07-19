@@ -15,8 +15,18 @@ typedef struct {
 } MemoryMap;
 
 typedef struct {
+  /** Physical address the guest image is loaded. */
+  void *guest_image;
+  /** Size in bytes of the guest image. */
+  UINTN guest_size;
+} GuestInfo;
+
+typedef struct {
+  /** Magic number to check if the boot info is valid. */
   UINTN magic;
+  /** UEFI memory map. */
   MemoryMap map;
+  GuestInfo guest_info;
 } BootInfo;
 
 #endif  // SURTRC_DEF_H
