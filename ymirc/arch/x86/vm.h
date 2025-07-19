@@ -18,7 +18,7 @@ typedef struct {
   VmError error;
   VirtualizeType vtype;
   SvmVcpu svmvcpu;
-  uint8_t *guest_mem;
+  void *guest_mem;
 } Vm;
 
 /** Create a new virtual machine instance. You MUST initialize the VM before
