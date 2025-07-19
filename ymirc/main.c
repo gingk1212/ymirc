@@ -52,13 +52,13 @@ void kernel_main(BootInfo *boot_info) {
   log_set_writefn(serial_log_output);
   LOG_INFO("Booting YmirC...\n");
 
-  // Perform architecture-specific initialization
-  arch_init();
-
   // Validate the boot info
   if (validate_boot_info(boot_info)) {
     panic("Invalid boot info.");
   }
+
+  // Perform architecture-specific initialization
+  arch_init();
 
   // Initialize page allocator
   page_allocator_init(&boot_info->map);
