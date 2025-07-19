@@ -112,4 +112,6 @@ void setup_guest_memory(Vm *vm, const page_allocator_ops_t *pa_ops) {
   Phys n_cr3 =
       init_npt(0, virt2phys((Virt)vm->guest_mem), GUEST_MEMORY_SIZE, pa_ops);
   svm_vcpu_set_npt(&vm->svmvcpu, n_cr3, vm->guest_mem);
+  LOG_INFO("Guet memory is mapped: HVA=%p (size=0x%x)\n", vm->guest_mem,
+           GUEST_MEMORY_SIZE);
 }
