@@ -13,7 +13,7 @@ DEPS = $(OBJS:%.o=%.d)
 
 EFI_INC = /usr/include/efi
 
-CFLAGS = -I. -I$(EFI_INC) -ffreestanding -m64 -nostdlib -Wall -Wextra -std=c17 -MMD -MP -DLOG_LEVEL=0
+CFLAGS = -I. -I$(EFI_INC) -ffreestanding -mno-red-zone -m64 -nostdlib -Wall -Wextra -std=c17 -MMD -MP -DLOG_LEVEL=0
 LDFLAGS = -nostdlib -e kernel_entry -T linker.ld
 
 CFLAGS_FOR_TEST = -I. -I$(EFI_INC) -Wall -Wextra -std=c17 -g
