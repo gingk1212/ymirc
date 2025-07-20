@@ -96,8 +96,8 @@ void vm_init(Vm *vm, const page_allocator_ops_t *pa_ops) {
   svm_vcpu_virtualize(&vm->svmvcpu, pa_ops);
   LOG_INFO("vCPU #%d is created.\n", vm->svmvcpu.id);
 
-  // Setup VMCB.
-  svm_vcpu_setup_vmcb(&vm->svmvcpu);
+  // Setup guest state.
+  svm_vcpu_setup_guest_state(&vm->svmvcpu);
 }
 
 void vm_loop(Vm *vm) {

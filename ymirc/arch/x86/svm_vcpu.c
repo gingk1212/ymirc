@@ -5,11 +5,10 @@
 #include "arch.h"
 #include "asm.h"
 #include "bits.h"
+#include "linux.h"
 #include "log.h"
 #include "panic.h"
 #include "svm_asm.h"
-
-__attribute__((naked)) noreturn void blob_guest();
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
  * of bits 55:52 and 47:40 from the original 64-bit (in-memory) segment
@@ -28,7 +27,7 @@ __attribute__((naked)) noreturn void blob_guest();
 #define SEGMENT_RESERVED_MASK 0xFULL << 12
 
 static void setup_vmcb_seg(Vmcb *vmcb) {
-  // CS attrib
+  // CS
   uint64_t cs_attrib = 0;
   set_masked_bits(&cs_attrib, 1, SEGMENT_ACCESSED_MASK);
   set_masked_bits(&cs_attrib, 1, SEGMENT_RW_MASK);
@@ -38,14 +37,37 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
   set_masked_bits(&cs_attrib, 0, SEGMENT_DPL_MASK);
   set_masked_bits(&cs_attrib, 1, SEGMENT_PRESENT_MASK);
   set_masked_bits(&cs_attrib, 0, SEGMENT_AVL_MASK);
-  set_masked_bits(&cs_attrib, 1, SEGMENT_LONG_MASK);
-  set_masked_bits(&cs_attrib, 0, SEGMENT_DB_MASK);
+  set_masked_bits(&cs_attrib, 0, SEGMENT_LONG_MASK);
+  set_masked_bits(&cs_attrib, 1, SEGMENT_DB_MASK);
   set_masked_bits(&cs_attrib, 1, SEGMENT_GRANULARITY_MASK);
   set_masked_bits(&cs_attrib, 0, SEGMENT_RESERVED_MASK);
-
-  // CS
   vmcb->cs.attr = (uint16_t)cs_attrib;
   vmcb->cs.limit = UINT32_MAX;
+
+  // DS
+  uint64_t ds_attrib = 0;
+  set_masked_bits(&ds_attrib, 1, SEGMENT_ACCESSED_MASK);
+  set_masked_bits(&ds_attrib, 1, SEGMENT_RW_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_DC_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_EXECUTABLE_MASK);
+  set_masked_bits(&ds_attrib, 1, SEGMENT_DESC_TYPE_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_DPL_MASK);
+  set_masked_bits(&ds_attrib, 1, SEGMENT_PRESENT_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_AVL_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_LONG_MASK);
+  set_masked_bits(&ds_attrib, 1, SEGMENT_DB_MASK);
+  set_masked_bits(&ds_attrib, 1, SEGMENT_GRANULARITY_MASK);
+  set_masked_bits(&ds_attrib, 0, SEGMENT_RESERVED_MASK);
+  vmcb->ds.attr = (uint16_t)ds_attrib;
+  vmcb->ds.limit = UINT32_MAX;
+
+  // ES
+  vmcb->es.attr = (uint16_t)ds_attrib;
+  vmcb->es.limit = UINT32_MAX;
+
+  // SS
+  vmcb->ss.attr = (uint16_t)ds_attrib;
+  vmcb->ss.limit = UINT32_MAX;
 }
 
 SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
@@ -73,7 +95,8 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   write_msr(0xC0000080, efer);
 }
 
-void svm_vcpu_setup_vmcb(SvmVcpu *vcpu) {
+/** Set up VMCB for a logical processor. */
+static void setup_vmcb(SvmVcpu *vcpu) {
   Vmcb *vmcb = vcpu->vmcb;
 
   // VMRUN intercept bit must be set.
@@ -88,25 +111,33 @@ void svm_vcpu_setup_vmcb(SvmVcpu *vcpu) {
   // Segment registers.
   setup_vmcb_seg(vmcb);
 
-  // EFER
+  // EFER.
+  // The effect of turning off EFER.SVME while a guest is running is undefined.
   Efer efer = {0};
-  efer.value = (uint64_t)read_msr(0xC0000080);
-  efer.lme = 0;  // Long Mode Enable
-  efer.lma = 0;  // Long Mode Active
+  efer.svme = 1;
   vmcb->efer = efer.value;
 
   // Cr4
-  vmcb->cr4 = (uint64_t)read_cr4();
-
-  // Cr3
-  vmcb->cr3 = (uint64_t)read_cr3();
+  Cr4 cr4 = {0};
+  cr4.value = read_cr4();
+  cr4.pae = 0;  // Physical-Address Extension
+  vmcb->cr4 = cr4.value;
 
   // Cr0
   Cr0 cr0 = {0};
   cr0.pe = 1;  // Protection Enabled
   cr0.ne = 1;  // Numeric Error
+  cr0.et = 1;  // Extension type
   cr0.pg = 0;  // Paging
   vmcb->cr0 = cr0.value;
+
+  // RIP
+  vmcb->rip = LINUX_LAYOUT_KERNEL_BASE;
+}
+
+void svm_vcpu_setup_guest_state(SvmVcpu *vcpu) {
+  setup_vmcb(vcpu);
+  vcpu->guest_regs.rsi = LINUX_LAYOUT_BOOTPARAM;
 }
 
 void svm_vcpu_set_npt(SvmVcpu *vcpu, Phys n_cr3, void *host_start) {
@@ -170,11 +201,6 @@ static void handle_exit(SvmVcpu *vcpu) {
 }
 
 void svm_vcpu_loop(SvmVcpu *vcpu) {
-  // Copy blob_guest() to the guest memory at physical address 0x0.
-  void *guest_map = (void *)phys2virt(vcpu->guest_base);
-  memcpy(guest_map, (void *)blob_guest, 0x20);
-  vcpu->vmcb->rip = 0x0;
-
   // Start endless VMRUN / #VMEXIT loop.
   while (1) {
     // VMRUN. Clobbers all caller-saved registers since this inline assembly
@@ -188,11 +214,5 @@ void svm_vcpu_loop(SvmVcpu *vcpu) {
 
     // Handle #VMEXIT
     handle_exit(vcpu);
-  }
-}
-
-__attribute__((naked)) noreturn void blob_guest() {
-  while (1) {
-    __asm__ volatile("hlt");
   }
 }

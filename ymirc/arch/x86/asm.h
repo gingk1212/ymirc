@@ -25,6 +25,35 @@ typedef union {
 
 typedef union {
   struct {
+    unsigned int vme : 1;
+    unsigned int pvi : 1;
+    unsigned int tsd : 1;
+    unsigned int de : 1;
+    unsigned int pse : 1;
+    unsigned int pae : 1;
+    unsigned int mce : 1;
+    unsigned int pge : 1;
+    unsigned int pce : 1;
+    unsigned int osfxsr : 1;
+    unsigned int osxmmexcpt : 1;
+    unsigned int umip : 1;
+    unsigned int la57 : 1;
+    unsigned int reserved1 : 3;
+    unsigned int fsgsbase : 1;
+    unsigned int pcide : 1;
+    unsigned int osxsave : 1;
+    unsigned int reserved2 : 1;
+    unsigned int smep : 1;
+    unsigned int smap : 1;
+    unsigned int pke : 1;
+    unsigned int cet : 1;
+    uint64_t reserved3 : 40;
+  };
+  uint64_t value;
+} __attribute__((packed)) Cr4;
+
+typedef union {
+  struct {
     unsigned int sce : 1;
     unsigned int reserved1 : 7;
     unsigned int lme : 1;

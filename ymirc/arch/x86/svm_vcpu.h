@@ -30,8 +30,8 @@ SvmVcpu svm_vcpu_new(uint16_t asid);
 /** Enable SVM extensions. */
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops);
 
-/** Set up VMCB for a logical processor. */
-void svm_vcpu_setup_vmcb(SvmVcpu *vcpu);
+/** Set up guest state. */
+void svm_vcpu_setup_guest_state(SvmVcpu *vcpu);
 
 /** Set NPT related values. */
 void svm_vcpu_set_npt(SvmVcpu *vcpu, uint64_t n_cr3, void *host_start);
