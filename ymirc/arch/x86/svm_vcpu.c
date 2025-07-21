@@ -65,6 +65,14 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
   vmcb->es.attr = (uint16_t)ds_attrib;
   vmcb->es.limit = UINT32_MAX;
 
+  // FS (VMLOAD is required)
+  vmcb->fs.attr = (uint16_t)ds_attrib;
+  vmcb->fs.limit = UINT32_MAX;
+
+  // GS (VMLOAD is required)
+  vmcb->gs.attr = (uint16_t)ds_attrib;
+  vmcb->gs.limit = UINT32_MAX;
+
   // SS
   vmcb->ss.attr = (uint16_t)ds_attrib;
   vmcb->ss.limit = UINT32_MAX;

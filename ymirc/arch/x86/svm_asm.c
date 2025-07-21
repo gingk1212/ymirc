@@ -76,10 +76,16 @@ __attribute__((naked)) void asm_vmrun() {
         [xmm6] "i"(offsetof(GuestRegisters, xmm6)),
         [xmm7] "i"(offsetof(GuestRegisters, xmm7)));
 
+  // VMLOAD
+  __asm__ volatile("vmload");
+
   // VMRUN
   __asm__ volatile("vmrun");
 
   // #VMEXIT
+
+  // VMSAVE
+  __asm__ volatile("vmsave");
 
   // Disable IRQ.
   __asm__ volatile("cli");
