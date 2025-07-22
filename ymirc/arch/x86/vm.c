@@ -7,6 +7,7 @@
 
 #include "arch.h"
 #include "asm.h"
+#include "cpuid.h"
 #include "linux.h"
 #include "log.h"
 #include "mem.h"
@@ -21,24 +22,6 @@ static_assert(GUEST_MEMORY_SIZE % PAGE_SIZE_2MB == 0,
 /** cmdline */
 #define KERNEL_CMDLINE "console=ttyS0 earlyprintk=serial nokaslr"
 #define KERNEL_CMDLINE_LEN (sizeof(KERNEL_CMDLINE) - 1)
-
-/** Return value of CPUID. */
-typedef struct {
-  uint32_t eax;
-  uint32_t ebx;
-  uint32_t ecx;
-  uint32_t edx;
-} CpuidRegisters;
-
-/** Asm CPUID instruction. */
-static CpuidRegisters cpuid(uint32_t leaf, uint32_t subleaf) {
-  CpuidRegisters regs = {0};
-  __asm__ volatile("cpuid"
-                   : "=a"(regs.eax), "=b"(regs.ebx), "=c"(regs.ecx),
-                     "=d"(regs.edx)
-                   : "a"(leaf), "c"(subleaf));
-  return regs;
-}
 
 /** Length of out must be 12. */
 static void get_cpu_vendor_id(uint8_t *out) {
