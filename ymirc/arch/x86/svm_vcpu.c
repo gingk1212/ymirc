@@ -1,7 +1,5 @@
 #include "svm_vcpu.h"
 
-#include <stdnoreturn.h>
-
 #include "arch.h"
 #include "asm.h"
 #include "bits.h"
@@ -179,6 +177,9 @@ static void print_guest_state(SvmVcpu *vcpu) {
   LOG_ERROR("EFER:0x%x\n", vcpu->vmcb->efer);
   LOG_ERROR("CS : 0x%x 0x%x 0x%x\n", vcpu->vmcb->cs.sel, vcpu->vmcb->cs.base,
             vcpu->vmcb->cs.limit);
+}
+
+static void print_exit_info(SvmVcpu *vcpu) {
   LOG_ERROR("=== #VMEXIT Information ===\n");
   LOG_ERROR("EXITCODE : 0x%x\n", vcpu->vmcb->exitcode);
   LOG_ERROR("EXITINFO1: 0x%x\n", vcpu->vmcb->exitinfo1);
@@ -188,7 +189,7 @@ static void print_guest_state(SvmVcpu *vcpu) {
 /** Dump guest state. */
 static void dump(SvmVcpu *vcpu) { print_guest_state(vcpu); }
 
-static noreturn void abort(SvmVcpu *vcpu) {
+noreturn void svm_vcpu_abort(SvmVcpu *vcpu) {
   dump(vcpu);
   endless_halt();
 }
@@ -204,7 +205,8 @@ static void handle_exit(SvmVcpu *vcpu) {
       step_next_inst(vcpu->vmcb);
       break;
     default:
-      abort(vcpu);
+      print_exit_info(vcpu);
+      svm_vcpu_abort(vcpu);
   }
 }
 

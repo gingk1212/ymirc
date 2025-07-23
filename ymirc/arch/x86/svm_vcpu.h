@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 
 #include "mem.h"
 #include "page_allocator_if.h"
@@ -38,3 +39,6 @@ void svm_vcpu_set_npt(SvmVcpu *vcpu, uint64_t n_cr3, void *host_start);
 
 /** Start executing vCPU. */
 void svm_vcpu_loop(SvmVcpu *vcpu);
+
+/** Print guest state, and abort. */
+noreturn void svm_vcpu_abort(SvmVcpu *vcpu);
