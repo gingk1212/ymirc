@@ -7,6 +7,7 @@
 #include "log.h"
 #include "panic.h"
 #include "svm_asm.h"
+#include "svm_cpuid.h"
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
  * of bits 55:52 and 47:40 from the original 64-bit (in-memory) segment
@@ -105,6 +106,9 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 static void setup_vmcb(SvmVcpu *vcpu) {
   Vmcb *vmcb = vcpu->vmcb;
 
+  // Virtualize CPUID.
+  vmcb->intercept_cpuid = 1;
+
   // VMRUN intercept bit must be set.
   vmcb->intercept_vmrun = 1;
 
@@ -200,8 +204,8 @@ static void step_next_inst(Vmcb *vmcb) { vmcb->rip = vmcb->nrip; }
 /** Handle the #VMEXIT. */
 static void handle_exit(SvmVcpu *vcpu) {
   switch (vcpu->vmcb->exitcode) {
-    case SVM_EXIT_CODE_HLT:
-      LOG_DEBUG("HLT\n");
+    case SVM_EXIT_CODE_CPUID:
+      handle_svm_cpuid_exit(vcpu);
       step_next_inst(vcpu->vmcb);
       break;
     default:
