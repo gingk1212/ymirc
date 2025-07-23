@@ -14,7 +14,7 @@ typedef struct {
 /** Asm CPUID instruction. */
 CpuidRegisters cpuid(uint32_t leaf, uint32_t subleaf);
 
-/** CPUID Feature Flags bitfield for ECX.
+/** CPUID Standard Feature Flags bitfield for ECX.
  * Leaf=1, Sub-Leaf=null, */
 typedef union {
   struct {
@@ -43,12 +43,12 @@ typedef union {
     unsigned int _reserved6 : 1;
   };
   uint32_t value;
-} __attribute__((packed)) CpuidFeatureInfoEcx;
+} __attribute__((packed)) CpuidStdFeatureInfoEcx;
 
-static_assert(sizeof(CpuidFeatureInfoEcx) == 4,
-              "Unexpected CpuidFeatureInfoEcx size");
+static_assert(sizeof(CpuidStdFeatureInfoEcx) == 4,
+              "Unexpected CpuidStdFeatureInfoEcx size");
 
-/** CPUID Feature Flags bitfield for EDX.
+/** CPUID Standard Feature Flags bitfield for EDX.
  * Leaf=1, Sub-Leaf=null, */
 typedef union {
   struct {
@@ -82,10 +82,52 @@ typedef union {
     unsigned int _reserved5 : 3;
   };
   uint32_t value;
-} __attribute__((packed)) CpuidFeatureInfoEdx;
+} __attribute__((packed)) CpuidStdFeatureInfoEdx;
 
-static_assert(sizeof(CpuidFeatureInfoEdx) == 4,
-              "Unexpected CpuidFeatureInfoEdx size");
+static_assert(sizeof(CpuidStdFeatureInfoEdx) == 4,
+              "Unexpected CpuidStdFeatureInfoEdx size");
+
+/** CPUID Extended Feature Flags bitfield for EDX.
+ * Leaf=0x8000_0001, Sub-Leaf=null, */
+typedef union {
+  struct {
+    unsigned int fpu : 1;
+    unsigned int vme : 1;
+    unsigned int de : 1;
+    unsigned int pse : 1;
+    unsigned int tsc : 1;
+    unsigned int msr : 1;
+    unsigned int pae : 1;
+    unsigned int mce : 1;
+    unsigned int cmpxchg8b : 1;
+    unsigned int apic : 1;
+    unsigned int _reserved1 : 1;
+    unsigned int syscallsysret : 1;
+    unsigned int mtrr : 1;
+    unsigned int pge : 1;
+    unsigned int mca : 1;
+    unsigned int cmov : 1;
+    unsigned int pat : 1;
+    unsigned int pse36 : 1;
+    unsigned int _reserved2 : 2;
+    unsigned int nx : 1;
+    unsigned int _reserved3 : 1;
+    unsigned int mmxext : 1;
+    unsigned int mmx : 1;
+    unsigned int fxsr : 1;
+    unsigned int ffxsr : 1;
+    unsigned int page1gb : 1;
+    unsigned int rdtscp : 1;
+    unsigned int _reserved4 : 1;
+    unsigned int lm : 1;
+    unsigned int threednowext : 1;
+    unsigned int threednow : 1;
+  };
+  uint32_t value;
+} __attribute__((packed)) CpuidExtFeatureInfoEdx;
+
+static_assert(sizeof(CpuidExtFeatureInfoEdx) == 4,
+              "Unexpected CpuidExtFeatureInfoEdx size");
 
 /** CPUID Extended Feature Flags bitfield for EBX.
  * Leaf=7, Sub-Leaf=0, */

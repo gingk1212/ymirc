@@ -5,23 +5,24 @@
 #include "cpuid.h"
 #include "log.h"
 
-static const CpuidFeatureInfoEcx feature_info_ecx = {0};
-static const CpuidFeatureInfoEdx feature_info_edx = (CpuidFeatureInfoEdx){
-    .fpu = 1,
-    .vme = 1,
-    .de = 1,
-    .pse = 1,
-    .msr = 1,
-    .pae = 1,
-    .cmpxchg8b = 1,
-    .sysentersysexit = 1,
-    .pge = 1,
-    .cmov = 1,
-    .pse36 = 1,
-    .fxsr = 1,
-    .sse = 1,
-    .sse2 = 1,
-};
+static const CpuidStdFeatureInfoEcx std_feature_info_ecx = {0};
+static const CpuidStdFeatureInfoEdx std_feature_info_edx =
+    (CpuidStdFeatureInfoEdx){
+        .fpu = 1,
+        .vme = 1,
+        .de = 1,
+        .pse = 1,
+        .msr = 1,
+        .pae = 1,
+        .cmpxchg8b = 1,
+        .sysentersysexit = 1,
+        .pge = 1,
+        .cmov = 1,
+        .pse36 = 1,
+        .fxsr = 1,
+        .sse = 1,
+        .sse2 = 1,
+    };
 static const CpuidExtFeatureEbx0 ext_feature0_ebx = (CpuidExtFeatureEbx0){
     .smep = 1,
     .invpcid = 1,
@@ -54,6 +55,38 @@ static void invalid(SvmVcpu *vcpu) {
   setvalue(&regs->rdx, 0);
 }
 
+/** Use the host value by default, but if the feature also exists in Standard
+ * Feature Info, use that instead. */
+static uint32_t get_ext_feature_info_edx(uint32_t orig) {
+  CpuidExtFeatureInfoEdx feature_info = (CpuidExtFeatureInfoEdx){
+      .value = orig,
+  };
+
+  feature_info.fpu = 1;
+  feature_info.vme = 1;
+  feature_info.de = 1;
+  feature_info.pse = 1;
+  feature_info.tsc = 0;
+  feature_info.msr = 1;
+  feature_info.pae = 1;
+  feature_info.mce = 0;
+  feature_info.cmpxchg8b = 1;
+  feature_info.apic = 0;
+  feature_info.mtrr = 0;
+  feature_info.pge = 1;
+  feature_info.mca = 0;
+  feature_info.cmov = 1;
+  feature_info.pat = 0;
+  feature_info.pse36 = 1;
+  // Not present in Standard Feature Info, but MMX is also false there, so mark
+  // this as false too.
+  feature_info.mmxext = 0;
+  feature_info.mmx = 0;
+  feature_info.fxsr = 1;
+
+  return feature_info.value;
+}
+
 /** Handle #VMEXIT caused by CPUID instruction.
  * Note that this function does not increment the RIP. */
 void handle_svm_cpuid_exit(SvmVcpu *vcpu) {
@@ -75,8 +108,8 @@ void handle_svm_cpuid_exit(SvmVcpu *vcpu) {
                       orig_1.eax);  // Family, Model, Stepping Identifiers
       setvalue(&regs->rbx,
                orig_1.ebx);  // LocalApicId, LogicalProcessorCount, CLFlush
-      setvalue(&regs->rcx, feature_info_ecx.value);
-      setvalue(&regs->rdx, feature_info_edx.value);
+      setvalue(&regs->rcx, std_feature_info_ecx.value);
+      setvalue(&regs->rdx, std_feature_info_edx.value);
       break;
     // Power Management Related Features
     case 0x6:
@@ -127,7 +160,8 @@ void handle_svm_cpuid_exit(SvmVcpu *vcpu) {
       setvalue_safely(&vmcb->rax, 0);           // AMD Family, Model, Stepping
       setvalue(&regs->rbx, 0);                  // BrandId Identifier
       setvalue(&regs->rcx, orig_80000001.ecx);  // Feature Identifiers
-      setvalue(&regs->rdx, orig_80000001.edx);  // Feature Identifiers
+      setvalue(&regs->rdx, get_ext_feature_info_edx(
+                               orig_80000001.edx));  // Feature Identifiers
       break;
     default:
       LOG_WARN("Unhandled CPUID: Leaf=0x%x, Sub=0x%x\n", vmcb->rax, regs->rcx);
