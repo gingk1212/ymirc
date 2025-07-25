@@ -65,41 +65,6 @@ typedef struct {
 #define SEGMENT_BASE_HIGH_MASK 0xFFULL << 56
 #define SEGMENT_BASE_HIGH_WIDTH 8
 
-typedef struct {
-  unsigned __int128 value;
-} TssDescriptor;
-
-// Lower 16 bits of the segment limit.
-#define TSS_LIMIT_LOW_MASK 0xFFFFULL << 0
-#define TSS_LIMIT_LOW_WIDTH 16
-// Lower 24 bits of the base address.
-#define TSS_BASE_LOW_MASK 0xFFFFFFULL << 16
-#define TSS_BASE_LOW_WIDTH 24
-// Type: TSS.
-#define TSS_TYPE_MASK 0xFULL << 40
-// Descriptor type: System.
-#define TSS_DESC_TYPE_MASK 0x1ULL << 44
-// Descriptor Privilege Level.
-#define TSS_DPL_MASK 0x3ULL << 45
-// Segment present.
-#define TSS_PRESENT_MASK 0x1ULL << 47
-// Upper 4 bits of the segment limit.
-#define TSS_LIMIT_HIGH_MASK 0xFULL << 48
-#define TSS_LIMIT_HIGH_WIDTH 4
-// Available for use by system software.
-#define TSS_AVL_MASK 0x1ULL << 52
-// Reserved.
-#define TSS_LONG_MASK 0x1ULL << 53
-// Size flag.
-#define TSS_DB_MASK 0x1ULL << 54
-// Granularity.
-#define TSS_GRANULARITY_MASK 0x1ULL << 55
-// Upper 40 bits of the base address.
-#define TSS_BASE_HIGH_MASK 0xFFFFFFFFFFULL << 56
-#define TSS_BASE_HIGH_WIDTH 40
-// Reserved.
-#define TSS_RESERVED_MASK (unsigned __int128)0xFFFFFFFF << 96
-
 typedef enum { system = 0, code_data } DescriptorType;
 typedef enum { byte = 0, kbyte } Granularity;
 
@@ -107,9 +72,6 @@ typedef enum { byte = 0, kbyte } Granularity;
 
 // Global Desscriptor Table.
 __attribute__((aligned(16))) static SegmentDescriptor gdt[MAX_NUM_GDT] = {0};
-
-// Unused TSS segment.
-__attribute__((aligned(4096))) static uint8_t tssUnused[4096] = {0};
 
 static void init_segment_descriptor(SegmentDescriptor *desc, uint8_t rw,
                                     uint8_t dc, uint8_t executable,
@@ -138,33 +100,6 @@ static void init_segment_descriptor(SegmentDescriptor *desc, uint8_t rw,
       &desc->value,
       get_lower_bits(base >> SEGMENT_BASE_LOW_WIDTH, SEGMENT_BASE_HIGH_WIDTH),
       SEGMENT_BASE_HIGH_MASK);
-}
-
-static void init_tss_descriptor(TssDescriptor *desc, uint64_t base,
-                                uint32_t limit) {
-  set_masked_bits_128(&desc->value,
-                      get_lower_bits_128(limit, TSS_LIMIT_LOW_WIDTH),
-                      TSS_LIMIT_LOW_MASK);
-  set_masked_bits_128(&desc->value,
-                      get_lower_bits_128(base, TSS_BASE_LOW_WIDTH),
-                      TSS_BASE_LOW_MASK);
-  set_masked_bits_128(&desc->value, 0b1001, TSS_TYPE_MASK);
-  set_masked_bits_128(&desc->value, system, TSS_DESC_TYPE_MASK);
-  set_masked_bits_128(&desc->value, 0, TSS_DPL_MASK);
-  set_masked_bits_128(&desc->value, 1, TSS_PRESENT_MASK);
-  set_masked_bits_128(
-      &desc->value,
-      get_lower_bits_128(limit >> TSS_LIMIT_LOW_WIDTH, TSS_LIMIT_HIGH_WIDTH),
-      TSS_LIMIT_HIGH_MASK);
-  set_masked_bits_128(&desc->value, 0, TSS_AVL_MASK);
-  set_masked_bits_128(&desc->value, 1, TSS_LONG_MASK);
-  set_masked_bits_128(&desc->value, 0, TSS_DB_MASK);
-  set_masked_bits_128(&desc->value, kbyte, TSS_GRANULARITY_MASK);
-  set_masked_bits_128(
-      &desc->value,
-      get_lower_bits_128(base >> TSS_BASE_LOW_WIDTH, TSS_BASE_HIGH_WIDTH),
-      TSS_BASE_HIGH_MASK);
-  set_masked_bits_128(&desc->value, 0, TSS_RESERVED_MASK);
 }
 
 static inline void lgdt(Gdtr *gdtr) {
@@ -211,23 +146,6 @@ static inline void load_kernel_cs() {
       : "n"(SEGMENT_SELECTOR(KERNEL_CS_INDEX)));
 }
 
-/** Load the kernel TSS selector to TR. Not used in YmirC. */
-static inline void load_kernel_tss() {
-  __asm__ volatile(
-      "mov %0, %%di\n\t"
-      "ltr %%di"
-      :
-      : "n"(SEGMENT_SELECTOR(KERNEL_TSS_INDEX))
-      : "di");
-}
-
-/** tss_addr is virtual address. */
-static void setTss(uintptr_t tss_addr) {
-  TssDescriptor *tss_desc = (TssDescriptor *)&gdt[KERNEL_TSS_INDEX];
-  init_tss_descriptor(tss_desc, tss_addr, 0xFFFFF);
-  load_kernel_tss();
-}
-
 /** Initialize the GDT. */
 void gdt_init() {
   init_segment_descriptor(&gdt[KERNEL_CS_INDEX], 1, 0, 1, 0, 0xFFFFF, 0, kbyte);
@@ -241,7 +159,4 @@ void gdt_init() {
   // segment registers.
   load_kernel_ds();
   load_kernel_cs();
-
-  // TSS is not used by YmirC. But we have to set it for VMX.
-  setTss((uintptr_t)tssUnused);
 }
