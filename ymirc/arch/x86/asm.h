@@ -79,8 +79,15 @@ uintptr_t read_cr0(void);
 uintptr_t read_cr3(void);
 void load_cr3(uintptr_t value);
 uintptr_t read_cr4(void);
-uint64_t read_msr(uint32_t msr);
-void write_msr(uint32_t msr, uint64_t value);
+
+typedef enum {
+  MSR_EFER = 0xC0000080,
+  MSR_VM_CR = 0xC0010114,
+  MSR_VM_HSAVE_PA = 0xC0010117,
+} Msr;
+
+uint64_t read_msr(Msr msr);
+void write_msr(Msr msr, uint64_t value);
 
 typedef enum {
   SEGMENT_CS,

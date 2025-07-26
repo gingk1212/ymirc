@@ -85,7 +85,7 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   if (!hsave) {
     panic("Failed to allocate memory for saving host state.");
   }
-  write_msr(0xC0010117, virt2phys((uintptr_t)hsave));
+  write_msr(MSR_VM_HSAVE_PA, virt2phys((uintptr_t)hsave));
 
   // Allocate VMCB region.
   void *vmcb = pa_ops->alloc_aligned_pages(1, PAGE_SIZE);
@@ -97,9 +97,9 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   vcpu->vmcb_phys = virt2phys((uintptr_t)vmcb);
 
   // Extended Feature Enable Register (EFER)
-  uint64_t efer = read_msr(0xC0000080);
+  uint64_t efer = read_msr(MSR_EFER);
   efer |= 1ULL << 12;  // 12: EFFR.SVME bit
-  write_msr(0xC0000080, efer);
+  write_msr(MSR_EFER, efer);
 }
 
 /** Set up VMCB for a logical processor. */

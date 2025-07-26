@@ -40,8 +40,8 @@ static bool is_svm_supported() {
     return false;
   }
 
-  // VM_CR MSR (C001_0114h), SVMDIS bit
-  if ((read_msr(0xC0010114) & (1 << 4)) != 0) {
+  // check SVMDIS bit
+  if ((read_msr(MSR_VM_CR) & (1 << 4)) != 0) {
     return false;
   }
 
