@@ -32,7 +32,8 @@ SvmVcpu svm_vcpu_new(uint16_t asid);
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops);
 
 /** Set up guest state. */
-void svm_vcpu_setup_guest_state(SvmVcpu *vcpu);
+void svm_vcpu_setup_guest_state(SvmVcpu *vcpu,
+                                const page_allocator_ops_t *pa_ops);
 
 /** Set NPT related values. */
 void svm_vcpu_set_npt(SvmVcpu *vcpu, Phys n_cr3, void *host_start);

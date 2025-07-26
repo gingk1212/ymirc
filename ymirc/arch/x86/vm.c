@@ -80,7 +80,7 @@ void vm_init(Vm *vm, const page_allocator_ops_t *pa_ops) {
   LOG_INFO("vCPU #%d is created.\n", vm->svmvcpu.id);
 
   // Setup guest state.
-  svm_vcpu_setup_guest_state(&vm->svmvcpu);
+  svm_vcpu_setup_guest_state(&vm->svmvcpu, pa_ops);
 }
 
 void vm_loop(Vm *vm) {

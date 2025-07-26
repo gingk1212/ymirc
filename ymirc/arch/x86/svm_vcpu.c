@@ -8,6 +8,7 @@
 #include "panic.h"
 #include "svm_asm.h"
 #include "svm_cpuid.h"
+#include "svm_msr.h"
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
  * of bits 55:52 and 47:40 from the original 64-bit (in-memory) segment
@@ -77,6 +78,15 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
   vmcb->ss.limit = UINT32_MAX;
 }
 
+/** Configure intercepts for all MSR read and write instructions. */
+static void setup_vmcb_msr(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
+  Vmcb *vmcb = vcpu->vmcb;
+  void *msrpm = pa_ops->alloc_aligned_pages(2, PAGE_SIZE);
+  memset(msrpm, 1, PAGE_SIZE * 2);
+  vmcb->msrpm_base_pa = virt2phys((Virt)msrpm);
+  vmcb->intercept_msr_prot = 1;
+}
+
 SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
 
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
@@ -103,7 +113,7 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 }
 
 /** Set up VMCB for a logical processor. */
-static void setup_vmcb(SvmVcpu *vcpu) {
+static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   Vmcb *vmcb = vcpu->vmcb;
 
   // Virtualize CPUID.
@@ -143,10 +153,14 @@ static void setup_vmcb(SvmVcpu *vcpu) {
 
   // RIP
   vmcb->rip = LINUX_LAYOUT_KERNEL_BASE;
+
+  // MSR
+  setup_vmcb_msr(vcpu, pa_ops);
 }
 
-void svm_vcpu_setup_guest_state(SvmVcpu *vcpu) {
-  setup_vmcb(vcpu);
+void svm_vcpu_setup_guest_state(SvmVcpu *vcpu,
+                                const page_allocator_ops_t *pa_ops) {
+  setup_vmcb(vcpu, pa_ops);
   vcpu->guest_regs.rsi = LINUX_LAYOUT_BOOTPARAM;
 }
 
@@ -206,6 +220,10 @@ static void handle_exit(SvmVcpu *vcpu) {
   switch (vcpu->vmcb->exitcode) {
     case SVM_EXIT_CODE_CPUID:
       handle_svm_cpuid_exit(vcpu);
+      step_next_inst(vcpu->vmcb);
+      break;
+    case SVM_EXIT_CODE_MSR:
+      handle_svm_msr_exit(vcpu);
       step_next_inst(vcpu->vmcb);
       break;
     default:
