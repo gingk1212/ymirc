@@ -35,7 +35,7 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops);
 void svm_vcpu_setup_guest_state(SvmVcpu *vcpu);
 
 /** Set NPT related values. */
-void svm_vcpu_set_npt(SvmVcpu *vcpu, uint64_t n_cr3, void *host_start);
+void svm_vcpu_set_npt(SvmVcpu *vcpu, Phys n_cr3, void *host_start);
 
 /** Start executing vCPU. */
 void svm_vcpu_loop(SvmVcpu *vcpu);

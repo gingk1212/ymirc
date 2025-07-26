@@ -31,8 +31,8 @@ static const CpuidExtFeatureEbx0 ext_feature0_ebx = (CpuidExtFeatureEbx0){
 
 /** Set a 32-bit value to the given 64-bit without modifying the upper
  * 32-bits. Note: Parameter `reg` must be aligned. */
-static inline void setvalue(uint64_t *reg, uint64_t val) {
-  *((uint32_t *)reg) = (uint32_t)val;
+static inline void setvalue(uint64_t *reg, uint32_t val) {
+  *((uint32_t *)reg) = val;
 }
 
 /** Set a 32-bit value to the given 64-bit without modifying the upper 32-bits.
