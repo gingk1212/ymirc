@@ -3,6 +3,7 @@
 #include "arch.h"
 #include "asm.h"
 #include "bits.h"
+#include "gdt.h"
 #include "linux.h"
 #include "log.h"
 #include "panic.h"
@@ -215,8 +216,24 @@ noreturn void svm_vcpu_abort(SvmVcpu *vcpu) {
 /** Increment RIP. */
 static void step_next_inst(Vmcb *vmcb) { vmcb->rip = vmcb->nrip; }
 
+/** Load segment registers.
+ * Since the CPU does not restore the host's FS and GS registers, they must be
+ * restored manually. */
+static inline void load_segment_registers() {
+  __asm__ volatile(
+      "mov %0, %%di\n\t"
+      "mov %%di, %%fs\n\t"
+      "mov %%di, %%gs"
+      :
+      : "n"(SEGMENT_SELECTOR(KERNEL_DS_INDEX))
+      : "di");
+}
+
 /** Handle the #VMEXIT. */
 static void handle_exit(SvmVcpu *vcpu) {
+  // Load FS, GS.
+  load_segment_registers();
+
   switch (vcpu->vmcb->exitcode) {
     case SVM_EXIT_CODE_CPUID:
       handle_svm_cpuid_exit(vcpu);
