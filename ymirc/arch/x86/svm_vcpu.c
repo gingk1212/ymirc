@@ -138,12 +138,6 @@ static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   efer.svme = 1;
   vmcb->efer = efer.value;
 
-  // Cr4
-  Cr4 cr4 = {0};
-  cr4.value = read_cr4();
-  cr4.pae = 0;  // Physical-Address Extension
-  vmcb->cr4 = cr4.value;
-
   // Cr0
   Cr0 cr0 = {0};
   cr0.pe = 1;  // Protection Enabled
