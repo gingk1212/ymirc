@@ -46,8 +46,48 @@ static void handle_rdmsr(SvmVcpu *vcpu) {
 
 static void handle_wrmsr(SvmVcpu *vcpu) {
   GuestRegisters *regs = &vcpu->guest_regs;
+  Vmcb *vmcb = vcpu->vmcb;
+  uint64_t value = concat_64(regs->rdx, vmcb->rax);
 
   switch (regs->rcx) {
+    case MSR_SYSENTER_CS:
+      vmcb->sysenter_cs = value;  // Unused on host, no restore needed
+      break;
+    case MSR_SYSENTER_ESP:
+      vmcb->sysenter_esp = value;  // Unused on host, no restore needed
+      break;
+    case MSR_SYSENTER_EIP:
+      vmcb->sysenter_eip = value;  // Unused on host, no restore needed
+      break;
+    case MSR_EFER:
+      vmcb->efer = value;
+      break;
+    case MSR_STAR:
+      vmcb->star = value;  // TODO: restore host value on #VMEXIT as needed
+      break;
+    case MSR_LSTAR:
+      vmcb->lstar = value;  // TODO: restore host value on #VMEXIT as needed
+      break;
+    case MSR_CSTAR:
+      vmcb->cstar = value;  // TODO: restore host value on #VMEXIT as needed
+      break;
+    case MSR_SF_MASK:
+      vmcb->sfmask = value;  // TODO: restore host value on #VMEXIT as needed
+      break;
+    case MSR_FS_BASE:
+      vmcb->fs.base = value;
+      break;
+    case MSR_GS_BASE:
+      vmcb->gs.base = value;
+      break;
+    case MSR_KERNEL_GS_BASE:
+      vmcb->kernel_gs_base =
+          value;  // TODO: restore host value on #VMEXIT as needed
+      break;
+    case MSR_TSC_AUX:
+      write_msr(MSR_TSC_AUX,
+                value);  // TODO: restore host value on #VMEXIT as needed
+      break;
     default:
       LOG_ERROR("Unhandled WRMSR: 0x%x\n", regs->rcx);
       svm_vcpu_abort(vcpu);

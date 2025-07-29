@@ -22,6 +22,10 @@ static inline uint64_t concat(uint32_t a, uint32_t b) {
   return ((uint64_t)a << 32) | b;
 }
 
+static inline uint64_t concat_64(uint64_t a, uint64_t b) {
+  return ((a & 0xFFFFFFFF) << 32) | (b & 0xFFFFFFFF);
+}
+
 static inline void set_masked_bits(uint64_t *target, uint64_t val,
                                    uint64_t mask) {
   int shift = __builtin_ctzll(mask);

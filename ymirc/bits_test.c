@@ -17,6 +17,10 @@ int main() {
   assert(concat(0x12345678, 0x9abcdef0) == 0x123456789abcdef0);
   assert(concat(1, 0) == 0x0000000100000000);
 
+  assert(concat_64(0x123456789abcdef0ULL, 0x9abcdef012345678ULL) ==
+         0x9abcdef012345678ULL);
+  assert(concat_64(1, 0) == 0x0000000100000000);
+
   uint64_t val = 0b01010101;
   set_masked_bits(&val, 0b11001100, 0b00001111);
   assert(val == 0b01011100);
