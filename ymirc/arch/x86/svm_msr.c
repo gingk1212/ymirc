@@ -60,6 +60,11 @@ static void handle_wrmsr(SvmVcpu *vcpu) {
       vmcb->sysenter_eip = value;  // Unused on host, no restore needed
       break;
     case MSR_EFER:
+      Efer efer = {.value = value};
+      if (efer.lme || efer.nxe) {
+        // Flush guest's TLB entries.
+        vmcb->tlb_control = 0x03;
+      }
       vmcb->efer = value;
       break;
     case MSR_STAR:

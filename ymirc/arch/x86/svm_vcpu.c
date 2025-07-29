@@ -225,6 +225,9 @@ static inline void load_segment_registers() {
 
 /** Handle the #VMEXIT. */
 static void handle_exit(SvmVcpu *vcpu) {
+  // Reset TLB control setting.
+  vcpu->vmcb->tlb_control = 0x0;
+
   // Load FS, GS.
   load_segment_registers();
 
