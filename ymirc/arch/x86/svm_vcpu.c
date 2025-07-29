@@ -83,7 +83,7 @@ static void setup_vmcb_seg(Vmcb *vmcb) {
 static void setup_vmcb_msr(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   Vmcb *vmcb = vcpu->vmcb;
   void *msrpm = pa_ops->alloc_aligned_pages(2, PAGE_SIZE);
-  memset(msrpm, 1, PAGE_SIZE * 2);
+  memset(msrpm, 0xFF, PAGE_SIZE * 2);
   vmcb->msrpm_base_pa = virt2phys((Virt)msrpm);
   vmcb->intercept_msr_prot = 1;
 }
