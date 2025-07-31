@@ -8,7 +8,7 @@
 #include "page_allocator_if.h"
 #include "serial.h"
 #include "svm_common.h"
-#include "svm_serial.h"
+#include "svm_ioio_guest_state.h"
 #include "svm_vmcb.h"
 
 typedef struct {
@@ -26,8 +26,8 @@ typedef struct {
   Phys guest_base;
   /** Pointer to host's serial object. */
   Serial *serial;
-  /** Guest 8250 serial port. */
-  SvmSerial g_serial;
+  /** Saved guest IOIO state. */
+  SvmIoioGuestState guest_ioio_state;
 } SvmVcpu;
 
 /** Create a new virtual CPU. This function does not virtualize the CPU. You

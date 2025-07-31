@@ -99,7 +99,12 @@ static void setup_vmcb_ioio(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 }
 
 SvmVcpu svm_vcpu_new(uint16_t asid, Serial *serial) {
-  return (SvmVcpu){.id = 0, .asid = asid, .serial = serial};
+  return (SvmVcpu){
+      .id = 0,
+      .asid = asid,
+      .serial = serial,
+      .guest_ioio_state = svm_ioio_guest_state_new(),
+  };
 }
 
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
