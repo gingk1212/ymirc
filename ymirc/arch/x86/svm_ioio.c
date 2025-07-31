@@ -43,11 +43,24 @@ static void handle_ioio_in(SvmVcpu *vcpu, IOIOInterceptInfo info) {
     case 0x0040 ... 0x0047:
       handle_pit_in(vcpu, info);
       break;
+    case 0x0060 ... 0x0064:  // PS/2. Unimplemented.
+      vmcb->rax = 0;
+      break;
+    case 0x0070 ... 0x0071:  // RTC. Unimplemented.
+      vmcb->rax = 0;
+      break;
+    case 0x0080 ... 0x008F:  // DMA. Unimplemented.
+      break;
     case 0x00A0 ... 0x00A1:
       handle_pic_in(vcpu, info);
       break;
     case 0x02E8 ... 0x02EF:  // Fourth serial port. Ignore.
+      break;
     case 0x02F8 ... 0x02FF:  // Second serial port. Ignore.
+      break;
+    case 0x03B0 ... 0x03DF:  // VGA. Uniimplemented.
+      vmcb->rax = 0;
+      break;
     case 0x03E8 ... 0x03EF:  // Third serial port. Ignore.
       break;
     case 0x03F8 ... 0x03FF:
@@ -72,18 +85,22 @@ static void handle_ioio_out(SvmVcpu *vcpu, IOIOInterceptInfo info) {
     case 0x0040 ... 0x0047:
       handle_pit_out(vcpu, info);
       break;
+    case 0x0060 ... 0x0064:  // PS/2. Unimplemented.
+    case 0x0070 ... 0x0071:  // RTC. Unimplemented.
+    case 0x0080 ... 0x008F:  // DMA. Unimplemented.
+      break;
     case 0x00A0 ... 0x00A1:
       handle_pic_out(vcpu, info);
       break;
     case 0x02E8 ... 0x02EF:  // Fourth serial port. Ignore.
     case 0x02F8 ... 0x02FF:  // Second serial port. Ignore.
+    case 0x03B0 ... 0x03DF:  // VGA. Uniimplemented.
     case 0x03E8 ... 0x03EF:  // Third serial port. Ignore.
       break;
     case 0x03F8 ... 0x03FF:
       handle_serial_out(vcpu, info);
       break;
     case 0xC000 ... 0xCFFF:  // Old PCI. Ignore.
-      break;
     case 0x0CF8 ... 0x0CFF:  // PCI. Unimplemented.
       break;
     default:
