@@ -32,24 +32,24 @@ void pic_init() {
   // registering handlers.
   disable_intr();
 
-  // Start initialization sequence.
+  // Start initialization sequence. (ICW1)
   outb(ICW1_INIT | ICW1_ICW4, primary_command_port);
   outb(ICW1_INIT | ICW1_ICW4, secondary_command_port);
 
-  // Set the vector offsets.
+  // Set the vector offsets. (ICW2)
   outb(primary_vector_offset, primary_data_port);
   outb(secondary_vector_offset, secondary_data_port);
 
-  // Tell primary PIC that there is a slave PIC at IRQ2.
+  // Tell primary PIC that there is a slave PIC at IRQ2. (ICW3)
   outb(0b100, primary_data_port);
-  // Tell secondary PIC its cascade identity.
+  // Tell secondary PIC its cascade identity. (ICW3)
   outb(0b10, secondary_data_port);
 
-  // Set the mode.
+  // Set the mode. (ICW4)
   outb(ICW4_8086, primary_data_port);
   outb(ICW4_8086, secondary_data_port);
 
-  // Mask all IRQ lines (OCW1).
+  // Mask all IRQ lines. (OCW1)
   outb(0xFF, primary_data_port);
   outb(0xFF, secondary_data_port);
 
@@ -74,16 +74,19 @@ static inline uint16_t data_port(IrqLine irq) {
 static inline int delta(IrqLine irq) { return is_primary(irq) ? irq : irq - 8; }
 
 void set_mask(IrqLine irq) {
+  // OCW1
   uint16_t port = data_port(irq);
   outb(inb(port) | tobit(delta(irq)), port);
 }
 
 void unset_mask(IrqLine irq) {
+  // OCW1
   uint16_t port = data_port(irq);
   outb(inb(port) & ~tobit(delta(irq)), port);
 }
 
 void notify_eoi(IrqLine irq) {
+  // OCW2
   outb(OCW2_EOI | OCW2_SL | delta(irq), command_port(irq));
   // If the IRQ came from the Slave PIC, it is necessary to issue the command to
   // both PIC chips.
