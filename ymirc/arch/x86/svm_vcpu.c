@@ -9,6 +9,7 @@
 #include "panic.h"
 #include "svm_asm.h"
 #include "svm_cpuid.h"
+#include "svm_ioio.h"
 #include "svm_msr.h"
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
@@ -97,7 +98,9 @@ static void setup_vmcb_ioio(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   vmcb->intercept_ioio_prot = 1;
 }
 
-SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
+SvmVcpu svm_vcpu_new(uint16_t asid, Serial *serial) {
+  return (SvmVcpu){.id = 0, .asid = asid, .serial = serial};
+}
 
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   // Write to VM_HSAVE_PA MSR.
@@ -246,6 +249,10 @@ static void handle_exit(SvmVcpu *vcpu) {
   switch (vcpu->vmcb->exitcode) {
     case SVM_EXIT_CODE_CPUID:
       handle_svm_cpuid_exit(vcpu);
+      step_next_inst(vcpu->vmcb);
+      break;
+    case SVM_EXIT_CODE_IOIO:
+      handle_svm_ioio_exit(vcpu);
       step_next_inst(vcpu->vmcb);
       break;
     case SVM_EXIT_CODE_MSR:

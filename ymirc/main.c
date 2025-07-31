@@ -92,7 +92,7 @@ void kernel_main(BootInfo *boot_info) {
   enable_serial_interrupt();
 
   // Create VM instance.
-  Vm vm = vm_new();
+  Vm vm = vm_new(&serial);
   if (vm.error != VM_SUCESS) {
     LOG_ERROR("Failed to create VM instance.\n");
   } else {

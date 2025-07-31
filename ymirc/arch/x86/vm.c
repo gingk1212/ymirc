@@ -48,7 +48,7 @@ static bool is_svm_supported() {
   return true;
 }
 
-Vm vm_new() {
+Vm vm_new(Serial *serial) {
   Vm vm = (Vm){.error = VM_SUCESS};
 
   // Check CPU vendor.
@@ -68,7 +68,7 @@ Vm vm_new() {
       return (Vm){.error = VM_ERROR_SYSTEM_NOT_SUPPORTED};
     }
 
-    vm.svmvcpu = svm_vcpu_new(1);
+    vm.svmvcpu = svm_vcpu_new(1, serial);
   }
 
   return vm;

@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "page_allocator_if.h"
+#include "serial.h"
 #include "svm_vcpu.h"
 
 typedef enum {
@@ -23,7 +24,7 @@ typedef struct {
 
 /** Create a new virtual machine instance. You MUST initialize the VM before
  * using it. */
-Vm vm_new();
+Vm vm_new(Serial *serial);
 
 /** Initialize the virtual machine, enabling SVM extensions. */
 void vm_init(Vm *vm, const page_allocator_ops_t *pa_ops);

@@ -6,7 +6,9 @@
 
 #include "mem.h"
 #include "page_allocator_if.h"
+#include "serial.h"
 #include "svm_common.h"
+#include "svm_serial.h"
 #include "svm_vmcb.h"
 
 typedef struct {
@@ -22,11 +24,15 @@ typedef struct {
   GuestRegisters guest_regs;
   /** Host physical address where the guest is mapped. */
   Phys guest_base;
+  /** Pointer to host's serial object. */
+  Serial *serial;
+  /** Guest 8250 serial port. */
+  SvmSerial g_serial;
 } SvmVcpu;
 
 /** Create a new virtual CPU. This function does not virtualize the CPU. You
  * MUST call `virtualize` to put the CPU to enable SVM. */
-SvmVcpu svm_vcpu_new(uint16_t asid);
+SvmVcpu svm_vcpu_new(uint16_t asid, Serial *serial);
 
 /** Enable SVM extensions. */
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops);
