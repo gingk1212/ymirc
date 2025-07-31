@@ -88,6 +88,15 @@ static void setup_vmcb_msr(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   vmcb->intercept_msr_prot = 1;
 }
 
+/** Configure intercepts for all IOIO instructions. */
+static void setup_vmcb_ioio(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
+  Vmcb *vmcb = vcpu->vmcb;
+  void *iopm = pa_ops->alloc_aligned_pages(3, PAGE_SIZE);
+  memset(iopm, 0xFF, PAGE_SIZE * 3);
+  vmcb->iopm_base_pa = virt2phys((Virt)iopm);
+  vmcb->intercept_ioio_prot = 1;
+}
+
 SvmVcpu svm_vcpu_new(uint16_t asid) { return (SvmVcpu){.id = 0, .asid = asid}; }
 
 void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
@@ -151,6 +160,9 @@ static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 
   // MSR
   setup_vmcb_msr(vcpu, pa_ops);
+
+  // IOIO
+  setup_vmcb_ioio(vcpu, pa_ops);
 }
 
 void svm_vcpu_setup_guest_state(SvmVcpu *vcpu,
