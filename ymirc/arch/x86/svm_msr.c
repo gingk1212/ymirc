@@ -35,6 +35,9 @@ static void handle_rdmsr(SvmVcpu *vcpu) {
   Vmcb *vmcb = vcpu->vmcb;
 
   switch (regs->rcx) {
+    case MSR_APIC_BASE:
+      set_ret_val(vcpu, UINT64_MAX);  // disable APIC in Linux kernel.
+      break;
     case MSR_EFER:
       set_ret_val(vcpu, vmcb->efer);
       break;

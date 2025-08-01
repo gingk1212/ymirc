@@ -81,6 +81,7 @@ void load_cr3(uintptr_t value);
 uintptr_t read_cr4(void);
 
 typedef enum {
+  MSR_APIC_BASE = 0x1B,
   MSR_SYSENTER_CS = 0x174,
   MSR_SYSENTER_ESP = 0x175,
   MSR_SYSENTER_EIP = 0x176,
