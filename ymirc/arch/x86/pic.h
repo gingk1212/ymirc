@@ -41,3 +41,6 @@ void unset_mask(IrqLine irq);
 /** Notify the end of interrupt (EOI) to the PIC. This function uses
  * specific-EOI. */
 void notify_eoi(IrqLine irq);
+
+/** Read IRR in PIC. */
+uint16_t pic_read_irr();

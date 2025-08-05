@@ -22,6 +22,10 @@
 #define OCW2_EOI 0x20 /** EOI */
 #define OCW2_SL 0x40  /** If set, specific EOI. */
 
+#define OCW3_READ_IRR 0x02
+#define OCW3_READ_ISR 0x03
+#define OCW3_REQUIRED 0x08
+
 static const uint16_t primary_command_port = 0x20;
 static const uint16_t primary_data_port = primary_command_port + 1;
 static const uint16_t secondary_command_port = 0xA0;
@@ -93,4 +97,15 @@ void notify_eoi(IrqLine irq) {
   if (!is_primary(irq)) {
     outb(OCW2_EOI | OCW2_SL | irq_secondary, command_port(irq));
   }
+}
+
+uint16_t pic_read_irr() {
+  // OCW3
+  outb(OCW3_READ_IRR | OCW3_REQUIRED, primary_command_port);
+  outb(OCW3_READ_IRR | OCW3_REQUIRED, secondary_command_port);
+
+  uint8_t primary_irr = inb(primary_command_port);
+  uint8_t secondary_irr = inb(secondary_command_port);
+
+  return ((uint16_t)secondary_irr << 8) | primary_irr;
 }
