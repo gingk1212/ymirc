@@ -11,6 +11,13 @@ static inline uint64_t tobit(unsigned int nth) {
   return (uint64_t)1 << nth;
 }
 
+static inline uint16_t tobit_16(unsigned int nth) {
+  if (nth >= 16) {
+    return 0;
+  }
+  return (uint16_t)1 << nth;
+}
+
 static inline bool isset(uint64_t val, unsigned int nth) {
   if (nth >= 64) {
     return false;

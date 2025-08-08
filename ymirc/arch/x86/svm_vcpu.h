@@ -28,6 +28,8 @@ typedef struct {
   Serial *serial;
   /** Saved guest IOIO state. */
   SvmIoioGuestState guest_ioio_state;
+  /** Pending IRQ. */
+  uint16_t pending_irq;
 } SvmVcpu;
 
 /** Create a new virtual CPU. This function does not virtualize the CPU. You

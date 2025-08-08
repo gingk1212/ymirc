@@ -4,9 +4,12 @@
 #include "asm.h"
 #include "bits.h"
 #include "gdt.h"
+#include "interrupt.h"
+#include "isr.h"
 #include "linux.h"
 #include "log.h"
 #include "panic.h"
+#include "pic.h"
 #include "svm_asm.h"
 #include "svm_cpuid.h"
 #include "svm_ioio.h"
@@ -274,7 +277,24 @@ static void handle_exit(SvmVcpu *vcpu) {
   }
 }
 
+/** Callback function for interrupts. This function is to "share" IRQs between
+ * YmirC and the guest. This function is called before YmirC's interrupt handler
+ * and mark the incoming IRQ as pending. After that, YmirC's interrupt handler
+ * consumes the IRQ and send EOI to the PIC. */
+void intr_subscriber_callback(void *self, Context *ctx) {
+  SvmVcpu *vcpu = (SvmVcpu *)self;
+  uint64_t vector = ctx->vector;
+  uint64_t offset = primary_vector_offset;
+
+  if (offset <= vector && vector < offset + 16) {
+    vcpu->pending_irq |= tobit_16(vector - offset);
+  }
+}
+
 void svm_vcpu_loop(SvmVcpu *vcpu) {
+  // Subscribe to interrupts.
+  subscribe2interrupt(vcpu, intr_subscriber_callback);
+
   // Start endless VMRUN / #VMEXIT loop.
   while (1) {
     // VMRUN. Clobbers all caller-saved registers since this inline assembly
