@@ -1,11 +1,25 @@
 #include "interrupt.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "arch.h"
 #include "idt.h"
 #include "isr.h"
 #include "log.h"
+#include "panic.h"
+
+#define MAX_SUBSCRIBER 10
+
+/* Subscriber to interrupts.*/
+typedef struct {
+  void *self;  // Context of the subscriber.
+  SubscriberCallback callback;
+  bool in_use;
+} Subscriber;
+
+/** Subscriber to interrupts. */
+Subscriber subscribers[MAX_SUBSCRIBER] = {0};
 
 /** Interrupt handlers. */
 static Handler handlers[MAX_NUM_GATES] = {0};
@@ -29,12 +43,34 @@ void itr_init() {
  * handler. */
 void itr_dispatch(Context *ctx) {
   uint64_t vector = ctx->vector;
+
+  // Notify subscribers.
+  for (size_t i = 0; i < MAX_SUBSCRIBER; i++) {
+    if (subscribers[i].in_use) {
+      subscribers[i].callback(subscribers[i].self, ctx);
+    }
+  }
+
+  // Call the handler.
   handlers[vector](ctx);
 }
 
 /** Register interrupt handler. */
 void register_handler(uint8_t vector, Handler handler) {
   handlers[vector] = handler;
+}
+
+void subscribe2interrupt(void *ctx, SubscriberCallback callback) {
+  for (size_t i = 0; i < MAX_SUBSCRIBER; i++) {
+    if (!subscribers[i].in_use) {
+      subscribers[i].callback = callback;
+      subscribers[i].self = ctx;
+      subscribers[i].in_use = true;
+      return;
+    }
+  }
+
+  panic("Subscribers to interrupt is full.");
 }
 
 static void unhandled_handler(Context *ctx) {
