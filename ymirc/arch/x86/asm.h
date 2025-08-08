@@ -127,3 +127,6 @@ typedef struct {
 } __attribute((packed)) SidtRet;
 
 SidtRet sidt();
+
+static inline void stgi() { __asm__ volatile("stgi"); }
+static inline void clgi() { __asm__ volatile("clgi"); }

@@ -87,9 +87,6 @@ __attribute__((naked)) void asm_vmrun() {
   // VMSAVE
   __asm__ volatile("vmsave");
 
-  // Disable IRQ.
-  __asm__ volatile("cli");
-
   // Get &guest_regs.
   __asm__ volatile("pop %rax");
 
