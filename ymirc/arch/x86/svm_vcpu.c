@@ -134,6 +134,10 @@ void svm_vcpu_virtualize(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   Vmcb *vmcb = vcpu->vmcb;
 
+  // Interrupt
+  vmcb->intercept_intr = 1;
+  vmcb->v_intr_masking = 1;
+
   // Virtualize CPUID.
   vmcb->intercept_cpuid = 1;
 
