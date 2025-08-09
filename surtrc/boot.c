@@ -236,6 +236,26 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   LOG_INFO(L"Loaded guest kernel image @ 0x%016" PRIx64 " ~ 0x%016" PRIx64,
            guest_start, guest_start + guest_size);
 
+  // Open initrd.
+  EFI_FILE_HANDLE initrd[1];
+  TRY_EFI(
+      open_file(initrd, root_dir[0], L"rootfs.cpio.gz", EFI_FILE_MODE_READ));
+  LOG_INFO(L"Opened initrd file.");
+
+  // Get initrd size.
+  UINT64 initrd_size = file_size(initrd[0]);
+  LOG_INFO(L"Initrd size: 0x%x bytes.", initrd_size);
+
+  // Load initrd.
+  Phys initrd_start;
+  UINT64 initrd_size_pages =
+      (initrd_size + (EFI_PAGE_SIZE - 1)) / EFI_PAGE_SIZE;
+  TRY_EFI(uefi_call_wrapper(BS->AllocatePages, 4, AllocateAnyPages,
+                            EfiLoaderData, initrd_size_pages, &initrd_start));
+  TRY_EFI(read_file((void *)initrd_start, initrd[0], &initrd_size));
+  LOG_INFO(L"Loaded initrd @ 0x%016" PRIx64 " ~ 0x%016" PRIx64, initrd_start,
+           initrd_start + initrd_size);
+
   // Clean up memory.
   FreePool(header_buffer);
   FreePool(ph_buffer);
@@ -292,6 +312,8 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
           {
               .guest_image = (void *)guest_start,
               .guest_size = guest_size,
+              .initrd_addr = (void *)initrd_start,
+              .initrd_size = initrd_size,
           },
   };
   kernel_entry(&boot_info);

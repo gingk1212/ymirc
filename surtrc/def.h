@@ -19,6 +19,10 @@ typedef struct {
   void *guest_image;
   /** Size in bytes of the guest image. */
   UINTN guest_size;
+  /** Physical address the initrd is loaded. */
+  void *initrd_addr;
+  /** Size in bytes of the initrd. */
+  UINTN initrd_size;
 } GuestInfo;
 
 typedef struct {
