@@ -34,5 +34,5 @@ void vm_loop(Vm *vm);
 
 /** Setup guest memory. */
 void setup_guest_memory(Vm *vm, const void *guest_image,
-                        size_t guest_image_size,
-                        const page_allocator_ops_t *pa_ops);
+                        size_t guest_image_size, const void *initrd,
+                        size_t initrd_size, const page_allocator_ops_t *pa_ops);

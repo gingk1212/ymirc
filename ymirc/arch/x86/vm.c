@@ -97,7 +97,8 @@ static void load_image(uint8_t *memory, size_t memory_size, const void *image,
 }
 
 /** Load a protected kernel image and cmdline to the guest physical memory. */
-static void load_kernel(Vm *vm, const void *kernel, size_t kernel_size) {
+static void load_kernel(Vm *vm, const void *kernel, size_t kernel_size,
+                        const void *initrd, size_t initrd_size) {
   void *guest_mem = vm->guest_mem;
 
   if (kernel_size >= GUEST_MEMORY_SIZE) {
@@ -135,6 +136,18 @@ static void load_kernel(Vm *vm, const void *kernel, size_t kernel_size) {
   memset(cmdline, 0, cmdline_max_size);
   memcpy(cmdline, cmdline_val, len);
 
+  // Load initrd
+  if (GUEST_MEMORY_SIZE - LINUX_LAYOUT_INITRD < initrd_size) {
+    panic("Initrd size exceeds guest memory limit.");
+  }
+  if (bp.hdr.initrd_addr_max < LINUX_LAYOUT_INITRD + initrd_size) {
+    panic("Initrd size exceeds maximum allowed address.");
+  }
+  bp.hdr.ramdisk_image = LINUX_LAYOUT_INITRD;
+  bp.hdr.ramdisk_size = initrd_size;
+  load_image(guest_mem, GUEST_MEMORY_SIZE, initrd, initrd_size,
+             LINUX_LAYOUT_INITRD);
+
   // Copy boot_params
   load_image(guest_mem, GUEST_MEMORY_SIZE, &bp, sizeof(bp),
              LINUX_LAYOUT_BOOTPARAM);
@@ -150,7 +163,8 @@ static void load_kernel(Vm *vm, const void *kernel, size_t kernel_size) {
 }
 
 void setup_guest_memory(Vm *vm, const void *guest_image,
-                        size_t guest_image_size,
+                        size_t guest_image_size, const void *initrd,
+                        size_t initrd_size,
                         const page_allocator_ops_t *pa_ops) {
   // Allocate guest memory.
   vm->guest_mem =
@@ -160,7 +174,7 @@ void setup_guest_memory(Vm *vm, const void *guest_image,
   }
 
   // Load kernel
-  load_kernel(vm, guest_image, guest_image_size);
+  load_kernel(vm, guest_image, guest_image_size, initrd, initrd_size);
 
   // Create simple NPT mapping.
   Phys n_cr3 =

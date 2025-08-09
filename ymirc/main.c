@@ -102,7 +102,9 @@ void kernel_main(BootInfo *boot_info) {
 
     // Setup guest memory and load kernel.
     void *guest_kernel = (void *)phys2virt((uintptr_t)guest_info.guest_image);
-    setup_guest_memory(&vm, guest_kernel, guest_info.guest_size, &pa_ops);
+    void *initrd = (void *)phys2virt((uintptr_t)guest_info.initrd_addr);
+    setup_guest_memory(&vm, guest_kernel, guest_info.guest_size, initrd,
+                       guest_info.initrd_size, &pa_ops);
     LOG_INFO("Setup guest memory.\n");
 
     // Launch
