@@ -241,6 +241,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image_handle,
   FreePool(ph_buffer);
   TRY_EFI(uefi_call_wrapper(kernel[0]->Close, 1, kernel[0]));
   TRY_EFI(uefi_call_wrapper(root_dir[0]->Close, 1, root_dir[0]));
+  TRY_EFI(uefi_call_wrapper(guest[0]->Close, 1, guest[0]));
 
   // Get memory map.
   int map_buffer_size = EFI_PAGE_SIZE * 4;
