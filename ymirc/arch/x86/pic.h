@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /** Line numbers for the PIC. */
@@ -26,6 +27,12 @@ typedef enum {
 static const uint8_t primary_vector_offset = 32;
 /** Interrupt vector for the secondary PIC. Must be divisible by 8. */
 static const uint8_t secondary_vector_offset = primary_vector_offset + 8;
+
+/** Return true if the IRQ belongs to the primary PIC. */
+static inline bool is_primary(IrqLine irq) { return irq < 8; }
+
+/** Get the offset of the IRQ within the PIC. */
+static inline int delta(IrqLine irq) { return is_primary(irq) ? irq : irq - 8; }
 
 /** Initialize the PIC remapping its interrupt vectors. All interrupts are
  * masked after initialization. You MUST call this function before using the

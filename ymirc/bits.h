@@ -25,6 +25,20 @@ static inline bool isset(uint64_t val, unsigned int nth) {
   return val >> nth & 1;
 }
 
+static inline bool isset_8(uint8_t val, unsigned int nth) {
+  if (nth >= 8) {
+    return false;
+  }
+  return val >> nth & 1;
+}
+
+static inline bool isset_16(uint16_t val, unsigned int nth) {
+  if (nth >= 16) {
+    return false;
+  }
+  return val >> nth & 1;
+}
+
 static inline uint64_t concat(uint32_t a, uint32_t b) {
   return ((uint64_t)a << 32) | b;
 }

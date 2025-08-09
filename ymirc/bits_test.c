@@ -19,6 +19,16 @@ int main() {
   assert(isset(1024, 10));
   assert(!isset(1, 64));
 
+  assert(isset_8(0b00011110, 1));
+  assert(!isset_8(0b00011110, 0));
+  assert(isset_8(128, 7));
+  assert(!isset_8(1, 8));
+
+  assert(isset_16(0b00011110, 1));
+  assert(!isset_16(0b00011110, 0));
+  assert(isset_16(1024, 10));
+  assert(!isset_16(1, 16));
+
   assert(concat(0x12345678, 0x9abcdef0) == 0x123456789abcdef0);
   assert(concat(1, 0) == 0x0000000100000000);
 

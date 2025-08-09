@@ -139,6 +139,7 @@ static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 
   // Interrupt
   vmcb->intercept_intr = 1;
+  vmcb->v_ign_tpr = 1;
   vmcb->v_intr_masking = 1;
 
   // Virtualize CPUID.
@@ -189,6 +190,52 @@ void svm_vcpu_setup_guest_state(SvmVcpu *vcpu,
 void svm_vcpu_set_npt(SvmVcpu *vcpu, Phys n_cr3, void *host_start) {
   vcpu->vmcb->n_cr3 = n_cr3;
   vcpu->guest_base = virt2phys((uintptr_t)host_start);
+}
+
+/** Inject external interrupt to the guest if possible. Returns true if the
+ * interrupt is injected, otherwise false. It's the totally YmirC's
+ * responsibility to send an EOI to the PIC because YmirC blocks EOI commands
+ * from the guest. */
+static bool inject_ext_intr(SvmVcpu *vcpu) {
+  bool is_secondary_masked =
+      isset_16(vcpu->guest_ioio_state.primary_mask, irq_secondary);
+  SvmIoioGuestState *guest_state = &vcpu->guest_ioio_state;
+
+  // No interrupts to inject.
+  if (vcpu->pending_irq == 0) return false;
+  // PIC is not initialized.
+  if (guest_state->primary_phase != SVM_PIC_INIT_PHASE_INITED) return false;
+
+  // Guest is blocking interrupts.
+  FlagsRegister rflags = {.value = vcpu->vmcb->rflags};
+  if (!rflags.ief) return false;
+
+  // Iterate all possible IRQs and inject one if possible.
+  for (int i = 0; i < 16; i++) {
+    if (is_secondary_masked && i >= 8) break;
+
+    uint16_t irq_bit = tobit_16(i);
+    // The IRQ is not pending.
+    if ((vcpu->pending_irq & irq_bit) == 0) continue;
+
+    // Check if the IRQ is masked.
+    bool is_masked = is_primary(i)
+                         ? isset_8(guest_state->primary_mask, delta(i))
+                         : isset_8(guest_state->secondary_mask, delta(i));
+    if (is_masked) continue;
+
+    // Inject the interrupt.
+    vcpu->vmcb->v_irq = 1;
+    vcpu->vmcb->v_intr_vector = is_primary(i)
+                                    ? delta(i) + guest_state->primary_base
+                                    : delta(i) + guest_state->secondary_base;
+
+    // Clear the pending IRQ.
+    vcpu->pending_irq &= ~irq_bit;
+    return true;
+  }
+
+  return false;
 }
 
 static void print_guest_state(SvmVcpu *vcpu) {
@@ -259,6 +306,15 @@ static void handle_exit(SvmVcpu *vcpu) {
   load_segment_registers();
 
   switch (vcpu->vmcb->exitcode) {
+    case SVM_EXIT_CODE_INTR:
+      // Consume the interrupt by YmirC. At the same time, interrupt subscriber
+      // sets the peinding IRQ.
+      stgi();
+      clgi();
+
+      // Give the external interrupt to guest.
+      inject_ext_intr(vcpu);
+      break;
     case SVM_EXIT_CODE_CPUID:
       handle_svm_cpuid_exit(vcpu);
       step_next_inst(vcpu->vmcb);

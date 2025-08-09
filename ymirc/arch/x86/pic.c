@@ -1,6 +1,5 @@
 #include "pic.h"
 
-#include <stdbool.h>
 #include <stdint.h>
 #include <sys/io.h>
 
@@ -61,9 +60,6 @@ void pic_init() {
   enable_intr();
 }
 
-/** Return true if the IRQ belongs to the primary PIC. */
-static inline bool is_primary(IrqLine irq) { return irq < 8; }
-
 /** Get the command port for this IRQ. */
 static inline uint16_t command_port(IrqLine irq) {
   return is_primary(irq) ? primary_command_port : secondary_command_port;
@@ -73,9 +69,6 @@ static inline uint16_t command_port(IrqLine irq) {
 static inline uint16_t data_port(IrqLine irq) {
   return is_primary(irq) ? primary_data_port : secondary_data_port;
 }
-
-/** Get the offset of the IRQ within the PIC. */
-static inline int delta(IrqLine irq) { return is_primary(irq) ? irq : irq - 8; }
 
 void set_mask(IrqLine irq) {
   // OCW1

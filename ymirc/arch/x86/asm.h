@@ -75,6 +75,35 @@ typedef union {
   uint64_t value;
 } __attribute__((packed)) Efer;
 
+// EFLAGS register.
+typedef union {
+  struct {
+    unsigned int cf : 1;
+    unsigned int reserved1 : 1;
+    unsigned int pf : 1;
+    unsigned int reserved2 : 1;
+    unsigned int af : 1;
+    unsigned int reserved3 : 1;
+    unsigned int zf : 1;
+    unsigned int sf : 1;
+    unsigned int tf : 1;
+    unsigned int ief : 1;
+    unsigned int df : 1;
+    unsigned int of : 1;
+    unsigned int iopl : 2;
+    unsigned int nt : 1;
+    unsigned int reserved4 : 1;
+    unsigned int rf : 1;
+    unsigned int vm : 1;
+    unsigned int ac : 1;
+    unsigned int vif : 1;
+    unsigned int vip : 1;
+    unsigned int id : 1;
+    unsigned long int reserved : 42;
+  };
+  uint64_t value;
+} __attribute__((packed)) FlagsRegister;
+
 uintptr_t read_cr0(void);
 uintptr_t read_cr3(void);
 void load_cr3(uintptr_t value);
