@@ -68,7 +68,16 @@ typedef struct {
   unsigned int intercept_mwait : 1; /* 12 */
   unsigned int reserved010 : 19;    /* 31-13 */
   /* 0x014 */
-  uint32_t reserved01[3]; /* 0x014 */
+  unsigned int intercept_invlpgb : 1;
+  unsigned int intercept_invlpgb_illegal : 1;
+  unsigned int intercept_invpcid : 1;
+  unsigned int intercept_mcommit : 1;
+  unsigned int intercept_tlbsync : 1;
+  unsigned int intercept_bus_lock : 1;
+  unsigned int intercept_idle_hlt : 1;
+  unsigned int reserved014 : 25;
+  /* 0x018 */
+  uint32_t reserved01[2]; /* 0x018 */
   uint32_t reserved02[4]; /* 0x020 */
   uint32_t reserved03[4]; /* 0x030 */
   uint64_t iopm_base_pa;  /* 0x040 */
@@ -339,6 +348,16 @@ typedef enum {
   SVM_EXIT_CODE_MONITOR = 0x8A,
   SVM_EXIT_CODE_MWAIT = 0x8B,
   SVM_EXIT_CODE_MWAIT_CONDITIONAL = 0x8C,
+  SVM_EXIT_CODE_RDPRU = 0x8E,
+  SVM_EXIT_CODE_XSETBV = 0x8D,
+  SVM_EXIT_CODE_EFER_WRITE_TRAP = 0x8F,
+  SVM_EXIT_CODE_INVLPGB = 0xA0,
+  SVM_EXIT_CODE_INVLPGB_ILLEGAL = 0xA1,
+  SVM_EXIT_CODE_INVPCID = 0xA2,
+  SVM_EXIT_CODE_MCOMMIT = 0xA3,
+  SVM_EXIT_CODE_TLBSYNC = 0xA4,
+  SVM_EXIT_CODE_BUSLOCK = 0xA5,
+  SVM_EXIT_CODE_IDLE_HLT = 0xA6,
   SVM_EXIT_CODE_NPF = 0x400,
   SVM_EXIT_CODE_INVALID = -1,
 } SvmExitCode;
