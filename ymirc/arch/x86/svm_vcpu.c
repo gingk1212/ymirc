@@ -14,6 +14,7 @@
 #include "svm_cpuid.h"
 #include "svm_ioio.h"
 #include "svm_msr.h"
+#include "svm_vmcb.h"
 
 /** segment attributes are stored as 12-bit values formed by the concatenation
  * of bits 55:52 and 47:40 from the original 64-bit (in-memory) segment
@@ -144,6 +145,9 @@ static void setup_vmcb(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
 
   // Virtualize CPUID.
   vmcb->intercept_cpuid = 1;
+
+  // HLT
+  vmcb->intercept_hlt = 1;
 
   // VMRUN intercept bit must be set.
   vmcb->intercept_vmrun = 1;
@@ -317,6 +321,14 @@ static void handle_exit(SvmVcpu *vcpu) {
       break;
     case SVM_EXIT_CODE_CPUID:
       handle_svm_cpuid_exit(vcpu);
+      step_next_inst(vcpu->vmcb);
+      break;
+    case SVM_EXIT_CODE_HLT:
+      while (!inject_ext_intr(vcpu)) {
+        stgi();
+        __asm__ volatile("hlt");
+        clgi();
+      }
       step_next_inst(vcpu->vmcb);
       break;
     case SVM_EXIT_CODE_IOIO:
