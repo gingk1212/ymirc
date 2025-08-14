@@ -93,11 +93,28 @@ static void setup_vmcb_msr(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   vmcb->intercept_msr_prot = 1;
 }
 
+static void unmask_iopm_bit(uint8_t *iopm, size_t target_bit) {
+  size_t index = target_bit / 8;
+  size_t pos = target_bit % 8;
+  iopm[index] &= ~tobit_8(pos);
+}
+
 /** Configure intercepts for all IOIO instructions. */
 static void setup_vmcb_ioio(SvmVcpu *vcpu, const page_allocator_ops_t *pa_ops) {
   Vmcb *vmcb = vcpu->vmcb;
   void *iopm = pa_ops->alloc_aligned_pages(3, PAGE_SIZE);
   memset(iopm, 0xFF, PAGE_SIZE * 3);
+
+  // PIT: Programmable Interval Timer
+  for (int i = 0x40; i < 0x48; i++) {
+    unmask_iopm_bit(iopm, i);
+  }
+
+  // Serial 8250
+  unmask_iopm_bit(iopm, 0x03F8);
+  unmask_iopm_bit(iopm, 0x03FD);
+  unmask_iopm_bit(iopm, 0x03FE);
+
   vmcb->iopm_base_pa = virt2phys((Virt)iopm);
   vmcb->intercept_ioio_prot = 1;
 }

@@ -14,6 +14,11 @@ int main() {
   assert(tobit_16(10) == 1024);
   assert(tobit_16(16) == 0);
 
+  assert(tobit_8(0) == 0b00000001);
+  assert(tobit_8(1) == 0b00000010);
+  assert(tobit_8(7) == 128);
+  assert(tobit_8(8) == 0);
+
   assert(isset(0b00011110, 1));
   assert(!isset(0b00011110, 0));
   assert(isset(1024, 10));
