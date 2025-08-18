@@ -355,6 +355,7 @@ static void handle_exit(SvmVcpu *vcpu) {
         clgi();
       }
       step_next_inst(vcpu->vmcb);
+      vcpu->vmcb->interrupt_shadow = 0;
       break;
     case SVM_EXIT_CODE_IOIO:
       handle_svm_ioio_exit(vcpu);
