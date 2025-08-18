@@ -253,6 +253,8 @@ static bool inject_ext_intr(SvmVcpu *vcpu) {
 
     // Clear the pending IRQ.
     vcpu->pending_irq &= ~irq_bit;
+    // Set the last injected IRQ.
+    vcpu->last_injected_irq = i;
     return true;
   }
 
@@ -328,6 +330,12 @@ static void handle_exit(SvmVcpu *vcpu) {
 
   switch (vcpu->vmcb->exitcode) {
     case SVM_EXIT_CODE_INTR:
+      // If a physical interrupt occurs before the virtual interrupt is
+      // consumed, set the virtual interrupt back to the pending IRQ.
+      if (vcpu->vmcb->v_irq == 1) {
+        vcpu->pending_irq |= tobit_16(vcpu->last_injected_irq);
+      }
+
       // Consume the interrupt by YmirC. At the same time, interrupt subscriber
       // sets the peinding IRQ.
       stgi();
