@@ -1,6 +1,6 @@
 MAKEFLAGS += --no-print-directory
 
-all: ymirc surtrc
+all: ymirc surtrc ymircsh
 
 ymirc:
 	@echo "Building ymirc..."
@@ -9,6 +9,10 @@ ymirc:
 surtrc:
 	@echo "Building surtrc..."
 	@$(MAKE) -C surtrc
+
+ymircsh:
+	@echo "Building ymircsh..."
+	@$(MAKE) -C ymircsh
 
 run: all
 	@$(MAKE) -C surtrc run
@@ -25,4 +29,4 @@ bear:
 	@echo "Generating compilation database..."
 	bear -- make clean all test
 
-.PHONY: all ymirc surtrc run test clean
+.PHONY: all ymirc surtrc ymircsh run test clean
