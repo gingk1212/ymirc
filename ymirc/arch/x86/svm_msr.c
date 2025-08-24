@@ -71,16 +71,16 @@ static void handle_wrmsr(SvmVcpu *vcpu) {
       vmcb->efer = value;
       break;
     case MSR_STAR:
-      vmcb->star = value;  // TODO: restore host value on #VMEXIT as needed
+      vmcb->star = value;  // TODO: restore host value after #VMEXIT as needed
       break;
     case MSR_LSTAR:
-      vmcb->lstar = value;  // TODO: restore host value on #VMEXIT as needed
+      vmcb->lstar = value;  // TODO: restore host value after #VMEXIT as needed
       break;
     case MSR_CSTAR:
-      vmcb->cstar = value;  // TODO: restore host value on #VMEXIT as needed
+      vmcb->cstar = value;  // TODO: restore host value after #VMEXIT as needed
       break;
     case MSR_SF_MASK:
-      vmcb->sfmask = value;  // TODO: restore host value on #VMEXIT as needed
+      vmcb->sfmask = value;  // TODO: restore host value after #VMEXIT as needed
       break;
     case MSR_FS_BASE:
       vmcb->fs.base = value;
@@ -90,11 +90,12 @@ static void handle_wrmsr(SvmVcpu *vcpu) {
       break;
     case MSR_KERNEL_GS_BASE:
       vmcb->kernel_gs_base =
-          value;  // TODO: restore host value on #VMEXIT as needed
+          value;  // TODO: restore host value after #VMEXIT as needed
       break;
     case MSR_TSC_AUX:
       write_msr(MSR_TSC_AUX,
-                value);  // TODO: restore host value on #VMEXIT as needed
+                value);  // TODO: restore guest value before VMRUN and restore
+                         // host value after #VMEXIT as needed
       break;
     default:
       LOG_ERROR("Unhandled WRMSR: 0x%x\n", regs->rcx);
