@@ -16,7 +16,7 @@ This project is based on the blog series [Writing Hypervisor in Zig](https://hv.
 Installation Example (Ubuntu/Debian)
 
 ```
-sudo apt install gcc make qemu ovmf gnu-efi
+sudo apt install gcc make qemu-system-x86 ovmf gnu-efi
 ```
 
 Adjust the package manager commands if you are using a different Linux distribution.
