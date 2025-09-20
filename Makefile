@@ -29,4 +29,9 @@ bear:
 	@echo "Generating compilation database..."
 	bear -- make clean all test
 
-.PHONY: all ymirc surtrc ymircsh run test clean
+install-linux:
+	@echo "Install linux image and initramfs..."
+	mkdir -p build/img
+	cp examples/linux/bzImage examples/linux/rootfs.cpio.gz build/img
+
+.PHONY: all ymirc surtrc ymircsh run test clean install-linux
