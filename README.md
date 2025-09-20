@@ -1,21 +1,36 @@
 # YmirC
 
-YmirC is an AMD-V based type-1 hypervisor, written in C.
+YmirC is an AMD-V/SVM based type-1 hypervisor, written in C. It is designed to run Linux as a guest OS (tested with v6.15.9).
 
-This project is being developed based on the blog series [Writing Hypervisor in Zig](https://hv.smallkirby.com/).
+![YmirC demo](assets/demo.gif)
 
-**YmirC is currently under development.**
+This project is based on the blog series [Writing Hypervisor in Zig](https://hv.smallkirby.com/).
 
 ## Requirements
 
-- GNU-EFI (to build)
-- QEMU (to run)
-- OVMF (to run)
-## Run
+- GNU-EFI — required for building the hypervisor.
+- QEMU — for running the hypervisor.
+- OVMF — UEFI firmware for QEMU.
+- AMD x86_64 CPU — Intel CPUs are not supported.
 
-```sh
-$ make run
+Installation Example (Ubuntu/Debian)
+
+```
+sudo apt install gcc make qemu ovmf gnu-efi
 ```
 
-This will launch the hypervisor inside QEMU.  
-**Note:** The host CPU must be an AMD x86_64 processor — Intel CPUs are not supported.
+Adjust the package manager commands if you are using a different Linux distribution.
+
+## Run
+
+First, install the sample guest kernel and initramfs:
+
+```sh
+make install-linux
+```
+
+Then, launch the hypervisor inside QEMU:
+
+```sh
+make run
+```
