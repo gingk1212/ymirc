@@ -46,7 +46,7 @@ static void blob_irq_handler(Context *ctx) {
 
 void kernel_main(BootInfo *boot_info) {
   // Initialize the serial console
-  serial_init(&serial);
+  serial_init(&serial, SERIAL_PORT_COM1, 115200);
 
   // Initialize logger
   log_set_writefn(serial_log_output);
@@ -89,7 +89,7 @@ void kernel_main(BootInfo *boot_info) {
   // Unmask serial interrupt.
   register_handler(irq_serial1 + primary_vector_offset, blob_irq_handler);
   unset_mask(irq_serial1);
-  enable_serial_interrupt();
+  enable_serial_interrupt(&serial);
 
   // Create VM instance.
   Vm vm = vm_new(&serial);

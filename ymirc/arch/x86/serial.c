@@ -1,9 +1,15 @@
-#include "serial_impl.h"
+#include "serial.h"
 
 #include <stdint.h>
 #include <sys/io.h>
 
-#include "serial.h"
+#include "bits.h"
+#include "panic.h"
+
+/** Available serial ports. */
+#define COM1 0x3F8
+#define COM2 0x2F8
+#define COM3 0x3E8
 
 /// Transmitter Holding Buffer: DLAB=0, W
 static const int txr __attribute__((unused)) = 0;
@@ -32,48 +38,62 @@ static const int sr __attribute__((unused)) = 7;
 
 static const int divisor_latch_numerator = 115200;
 
-static void write_byte(uint8_t byte, Ports port) {
+/** Write a single byte to the serial console. */
+static void write_byte(uint8_t byte, uint16_t addr) {
   // Wait for the transmitter holding register to be empty
-  while ((inb(port + lsr) & 0b00100000) == 0) {
+  while (!isset_8(inb(addr + lsr), 5)) {
     __asm__ __volatile__("rep; nop");
   }
-  outb(byte, port);
+  outb(byte, addr);
 }
 
-void write_byte_com1(uint8_t byte) { write_byte(byte, com1); }
-void write_byte_com2(uint8_t byte) { write_byte(byte, com2); }
-void write_byte_com3(uint8_t byte) { write_byte(byte, com3); }
+void write_byte_com1(uint8_t byte) { write_byte(byte, COM1); }
+void write_byte_com2(uint8_t byte) { write_byte(byte, COM2); }
+void write_byte_com3(uint8_t byte) { write_byte(byte, COM3); }
 
-/** Initialize a serial console. */
-void serial_impl_init(Serial *serial, Ports port, uint32_t baud) {
-  outb(0x3, port + lcr);  // 8 bits, no parity, 1 stop bit
-  outb(0x0, port + ier);  // Disable interrupts
-  outb(0x0, port + fcr);  // Disable FIFO
+void serial_init(Serial *serial, SerialPort port, uint32_t baud) {
+  switch (port) {
+    case SERIAL_PORT_COM1:
+      serial->addr = COM1;
+      break;
+    case SERIAL_PORT_COM2:
+      serial->addr = COM2;
+      break;
+    case SERIAL_PORT_COM3:
+      serial->addr = COM3;
+      break;
+    default:
+      panic("Unsupported serial port.");
+  }
+
+  outb(0x3, serial->addr + lcr);  // 8 bits, no parity, 1 stop bit
+  outb(0x0, serial->addr + ier);  // Disable interrupts
+  outb(0x0, serial->addr + fcr);  // Disable FIFO
 
   // Set baud rate
   int divisor = divisor_latch_numerator / baud;
-  uint8_t c = inb(port + lcr);
-  outb(c | 0b10000000, port + lcr);         // Enable DLAB
-  outb(divisor & 0xFF, port + dll);         // Set divisor low byte
-  outb((divisor >> 8) & 0xFF, port + dlh);  // Set divisor high byte
-  outb(c & 0b01111111, port + lcr);         // Disable DLAB
+  uint8_t c = inb(serial->addr + lcr);
+  outb(c | 0b10000000, serial->addr + lcr);         // Enable DLAB
+  outb(divisor & 0xFF, serial->addr + dll);         // Set divisor low byte
+  outb((divisor >> 8) & 0xFF, serial->addr + dlh);  // Set divisor high byte
+  outb(c & 0b01111111, serial->addr + lcr);         // Disable DLAB
 
   // Set write-function
-  switch (port) {
-    case com1:
+  switch (serial->addr) {
+    case COM1:
       serial->write_fn = write_byte_com1;
       break;
-    case com2:
+    case COM2:
       serial->write_fn = write_byte_com2;
       break;
-    case com3:
+    case COM3:
       serial->write_fn = write_byte_com3;
       break;
   }
 }
 
-void enable_serial_interrupt_impl(Ports port) {
-  uint8_t ie = inb(port + ier);
+void enable_serial_interrupt(const Serial *serial) {
+  uint8_t ie = inb(serial->addr + ier);
   ie |= 0b00000011;  // Rx-available, Tx-empty
-  outb(ie, port + ier);
+  outb(ie, serial->addr + ier);
 }
