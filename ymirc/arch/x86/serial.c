@@ -51,6 +51,21 @@ void write_byte_com1(uint8_t byte) { write_byte(byte, COM1); }
 void write_byte_com2(uint8_t byte) { write_byte(byte, COM2); }
 void write_byte_com3(uint8_t byte) { write_byte(byte, COM3); }
 
+/** Read a byte from Rx buffer. If Rx buffer is empty, return -1. */
+static int try_read_byte(uint16_t addr) {
+  // Check if Rx buffer is not empty.
+  if (!isset_8(inb(addr + lsr), 0)) {
+    return -1;
+  }
+
+  // read char from the receiver buffer.
+  return inb(addr);
+}
+
+int try_read_byte_com1() { return try_read_byte(COM1); }
+int try_read_byte_com2() { return try_read_byte(COM2); }
+int try_read_byte_com3() { return try_read_byte(COM3); }
+
 void serial_init(Serial *serial, SerialPort port, uint32_t baud) {
   switch (port) {
     case SERIAL_PORT_COM1:
@@ -88,6 +103,19 @@ void serial_init(Serial *serial, SerialPort port, uint32_t baud) {
       break;
     case COM3:
       serial->write_fn = write_byte_com3;
+      break;
+  }
+
+  // Set read-function
+  switch (serial->addr) {
+    case COM1:
+      serial->read_fn = try_read_byte_com1;
+      break;
+    case COM2:
+      serial->read_fn = try_read_byte_com2;
+      break;
+    case COM3:
+      serial->read_fn = try_read_byte_com3;
       break;
   }
 }
