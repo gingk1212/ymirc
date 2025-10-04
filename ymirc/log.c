@@ -99,6 +99,11 @@ void log_printf(int level, const char *fmt, ...) {
     if (fmt[i] == '%') {
       i++;
       switch (fmt[i]) {
+        case 'c': {
+          int c = va_arg(args, int);
+          write_char((char)c);
+          break;
+        }
         case 'd': {
           int val = va_arg(args, int);
           write_int(val);

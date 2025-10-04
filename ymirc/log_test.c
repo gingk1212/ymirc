@@ -47,6 +47,14 @@ int main() {
   assert(strcmp(log_buffer, "[ERROR] Test message: %\n") == 0);
   reset_buffer();
 
+  log_printf(LOG_LEVEL_INFO, "Test char: %c\n", 'A');
+  assert(strcmp(log_buffer, "[INFO ] Test char: A\n") == 0);
+  reset_buffer();
+
+  log_printf(LOG_LEVEL_DEBUG, "Multiple chars: %c %c %c\n", 'X', 'Y', 'Z');
+  assert(strcmp(log_buffer, "[DEBUG] Multiple chars: X Y Z\n") == 0);
+  reset_buffer();
+
   puts("PASS");
 
   return 0;
