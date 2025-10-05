@@ -730,9 +730,9 @@ void handle_exception(int exceptionVector) {
   ptr = mem2hex((char *)&registers[PC], ptr, 4, 0); /* PC */
   *ptr++ = ';';
 
-  *ptr = '\0'
+  *ptr = '\0';
 
-      putpacket(remcomOutBuffer);
+  putpacket(remcomOutBuffer);
 
   stepping = 0;
 
