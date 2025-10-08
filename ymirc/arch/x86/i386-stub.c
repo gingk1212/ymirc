@@ -46,9 +46,7 @@ static uint8_t *strcpy_local(uint8_t *dest, const uint8_t *src) {
   return dest;
 }
 
-int hex(ch)
-uint8_t ch;
-{
+int hex(uint8_t ch) {
   if ((ch >= 'a') && (ch <= 'f')) return (ch - 'a' + 10);
   if ((ch >= '0') && (ch <= '9')) return (ch - '0');
   if ((ch >= 'A') && (ch <= 'F')) return (ch - 'A' + 10);
@@ -142,9 +140,7 @@ void putpacket(const uint8_t *buffer) {
   } while (getDebugChar() != '+');
 }
 
-void debug_error(format, parm) const uint8_t *format;
-const uint8_t *parm;
-{
+void debug_error(const uint8_t *format, const uint8_t *parm) {
   if (remote_debug) fprintf(stderr, (const char *)format, (const char *)parm);
 }
 
@@ -169,11 +165,7 @@ void set_char(uint8_t *addr, uint8_t val) { *addr = val; }
 /* return a pointer to the last char put in buf (null) */
 /* If MAY_FAULT is non-zero, then we should set mem_err in response to
    a fault; if zero treat a fault like any other fault in the stub.  */
-uint8_t *mem2hex(mem, buf, count, may_fault) const uint8_t *mem;
-uint8_t *buf;
-int count;
-int may_fault;
-{
+uint8_t *mem2hex(const uint8_t *mem, uint8_t *buf, int count, int may_fault) {
   int i;
   uint8_t ch;
 
@@ -191,11 +183,7 @@ int may_fault;
 
 /* convert the hex array pointed to by buf into binary to be placed in mem */
 /* return a pointer to the character AFTER the last byte written */
-uint8_t *hex2mem(buf, mem, count, may_fault) const uint8_t *buf;
-uint8_t *mem;
-int count;
-int may_fault;
-{
+uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count, int may_fault) {
   int i;
   uint8_t ch;
 
@@ -381,7 +369,7 @@ void handle_exception(int exceptionVector) {
               mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
               if (mem_err) {
                 strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
-                debug_error((const uint8_t *)"memory fault");
+                debug_error((const uint8_t *)"memory fault", NULL);
               }
             }
 
@@ -402,7 +390,7 @@ void handle_exception(int exceptionVector) {
 
                 if (mem_err) {
                   strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
-                  debug_error((const uint8_t *)"memory fault");
+                  debug_error((const uint8_t *)"memory fault", NULL);
                 } else {
                   strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
                 }
