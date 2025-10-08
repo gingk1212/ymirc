@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 
 /* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
 /* at least NUMREGBYTES*2 are needed for register packets */
@@ -38,6 +37,13 @@ enum regnames {
 };
 
 #define BREAKPOINT() __asm__ volatile("int $3");
+
+/* Custom string copy function */
+static char *strcpy_local(char *dest, const char *src) {
+  char *d = dest;
+  while ((*d++ = *src++) != '\0');
+  return dest;
+}
 
 int hex(ch)
 char ch;
@@ -348,7 +354,7 @@ void handle_exception(int exceptionVector) {
         break;
       case 'G': /* set the value of the CPU registers - return OK */
         hex2mem(ptr, (char *)registers, NUMREGBYTES, 0);
-        strcpy(remcomOutBuffer, "OK");
+        strcpy_local(remcomOutBuffer, "OK");
         break;
       case 'P': /* set the value of a single CPU register - return OK */
       {
@@ -357,11 +363,11 @@ void handle_exception(int exceptionVector) {
         if (hexToInt(&ptr, &regno) && *ptr++ == '=')
           if (regno >= 0 && regno < NUMREGS) {
             hex2mem(ptr, (char *)&registers[regno], 4, 0);
-            strcpy(remcomOutBuffer, "OK");
+            strcpy_local(remcomOutBuffer, "OK");
             break;
           }
 
-        strcpy(remcomOutBuffer, "E01");
+        strcpy_local(remcomOutBuffer, "E01");
         break;
       }
 
@@ -375,13 +381,13 @@ void handle_exception(int exceptionVector) {
               mem_err = 0;
               mem2hex((char *)addr, remcomOutBuffer, length, 1);
               if (mem_err) {
-                strcpy(remcomOutBuffer, "E03");
+                strcpy_local(remcomOutBuffer, "E03");
                 debug_error("memory fault");
               }
             }
 
         if (ptr) {
-          strcpy(remcomOutBuffer, "E01");
+          strcpy_local(remcomOutBuffer, "E01");
         }
         break;
 
@@ -396,16 +402,16 @@ void handle_exception(int exceptionVector) {
                 hex2mem(ptr, (char *)addr, length, 1);
 
                 if (mem_err) {
-                  strcpy(remcomOutBuffer, "E03");
+                  strcpy_local(remcomOutBuffer, "E03");
                   debug_error("memory fault");
                 } else {
-                  strcpy(remcomOutBuffer, "OK");
+                  strcpy_local(remcomOutBuffer, "OK");
                 }
 
                 ptr = 0;
               }
         if (ptr) {
-          strcpy(remcomOutBuffer, "E02");
+          strcpy_local(remcomOutBuffer, "E02");
         }
         break;
 
