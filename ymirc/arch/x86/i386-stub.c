@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 /* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
@@ -9,7 +10,7 @@ static char initialized; /* boolean flag. != 0 means we've been initialized */
 int remote_debug;
 /*  debug >  0 prints ill-formed commands in valid packets & checksum errors */
 
-static const char hexchars[] = "0123456789abcdef";
+static const uint8_t hexchars[] = "0123456789abcdef";
 
 /* Number of registers.  */
 #define NUMREGS 16
@@ -39,14 +40,14 @@ enum regnames {
 #define BREAKPOINT() __asm__ volatile("int $3");
 
 /* Custom string copy function */
-static char *strcpy_local(char *dest, const char *src) {
-  char *d = dest;
+static uint8_t *strcpy_local(uint8_t *dest, const uint8_t *src) {
+  uint8_t *d = dest;
   while ((*d++ = *src++) != '\0');
   return dest;
 }
 
 int hex(ch)
-char ch;
+uint8_t ch;
 {
   if ((ch >= 'a') && (ch <= 'f')) return (ch - 'a' + 10);
   if ((ch >= '0') && (ch <= '9')) return (ch - '0');
@@ -54,17 +55,17 @@ char ch;
   return (-1);
 }
 
-static char remcomInBuffer[BUFMAX];
-static char remcomOutBuffer[BUFMAX];
+static uint8_t remcomInBuffer[BUFMAX];
+static uint8_t remcomOutBuffer[BUFMAX];
 
 /* scan for the sequence $<data>#<checksum>     */
 
-unsigned char *getpacket(void) {
-  unsigned char *buffer = &remcomInBuffer[0];
-  unsigned char checksum;
-  unsigned char xmitcsum;
+uint8_t *getpacket(void) {
+  uint8_t *buffer = &remcomInBuffer[0];
+  uint8_t checksum;
+  uint8_t xmitcsum;
   int count;
-  char ch;
+  uint8_t ch;
 
   while (1) {
     /* wait around for the start character, ignore all other characters */
@@ -117,10 +118,10 @@ unsigned char *getpacket(void) {
 
 /* send the packet in buffer.  */
 
-void putpacket(unsigned char *buffer) {
-  unsigned char checksum;
+void putpacket(const uint8_t *buffer) {
+  uint8_t checksum;
   int count;
-  char ch;
+  uint8_t ch;
 
   /*  $<packet info>#<checksum>.  */
   do {
@@ -141,10 +142,10 @@ void putpacket(unsigned char *buffer) {
   } while (getDebugChar() != '+');
 }
 
-void debug_error(format, parm) char *format;
-char *parm;
+void debug_error(format, parm) const uint8_t *format;
+const uint8_t *parm;
 {
-  if (remote_debug) fprintf(stderr, format, parm);
+  if (remote_debug) fprintf(stderr, (const char *)format, (const char *)parm);
 }
 
 /* Address of a routine to RTE to if we get a memory fault.  */
@@ -160,22 +161,21 @@ void set_mem_err(void) { mem_err = 1; }
    that the compiler won't save any registers (if there is a fault
    to mem_fault, they won't get restored, so there better not be any
    saved).  */
-int get_char(char *addr) { return *addr; }
+uint8_t get_char(const uint8_t *addr) { return *addr; }
 
-void set_char(char *addr, int val) { *addr = val; }
+void set_char(uint8_t *addr, uint8_t val) { *addr = val; }
 
 /* convert the memory pointed to by mem into hex, placing result in buf */
 /* return a pointer to the last char put in buf (null) */
 /* If MAY_FAULT is non-zero, then we should set mem_err in response to
    a fault; if zero treat a fault like any other fault in the stub.  */
-char *mem2hex(mem, buf, count, may_fault)
-char *mem;
-char *buf;
+uint8_t *mem2hex(mem, buf, count, may_fault) const uint8_t *mem;
+uint8_t *buf;
 int count;
 int may_fault;
 {
   int i;
-  unsigned char ch;
+  uint8_t ch;
 
   if (may_fault) mem_fault_routine = set_mem_err;
   for (i = 0; i < count; i++) {
@@ -191,14 +191,13 @@ int may_fault;
 
 /* convert the hex array pointed to by buf into binary to be placed in mem */
 /* return a pointer to the character AFTER the last byte written */
-char *hex2mem(buf, mem, count, may_fault)
-char *buf;
-char *mem;
+uint8_t *hex2mem(buf, mem, count, may_fault) const uint8_t *buf;
+uint8_t *mem;
 int count;
 int may_fault;
 {
   int i;
-  unsigned char ch;
+  uint8_t ch;
 
   if (may_fault) mem_fault_routine = set_mem_err;
   for (i = 0; i < count; i++) {
@@ -271,7 +270,7 @@ int computeSignal(int exceptionVector) {
 /* WHILE WE FIND NICE HEX CHARS, BUILD AN INT */
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
-int hexToInt(char **ptr, int *intValue) {
+int hexToInt(const uint8_t **ptr, int *intValue) {
   int numChars = 0;
   int hexValue;
 
@@ -297,7 +296,7 @@ int hexToInt(char **ptr, int *intValue) {
 void handle_exception(int exceptionVector) {
   int sigval, stepping;
   int addr, length;
-  char *ptr;
+  const uint8_t *ptr;
   int newPC;
 
   if (remote_debug) {
@@ -308,28 +307,28 @@ void handle_exception(int exceptionVector) {
   /* reply to host that an exception has occurred */
   sigval = computeSignal(exceptionVector);
 
-  ptr = remcomOutBuffer;
+  uint8_t *out_ptr = remcomOutBuffer;
 
-  *ptr++ = 'T'; /* notify gdb with signo, PC, FP and SP */
-  *ptr++ = hexchars[sigval >> 4];
-  *ptr++ = hexchars[sigval & 0xf];
+  *out_ptr++ = 'T'; /* notify gdb with signo, PC, FP and SP */
+  *out_ptr++ = hexchars[sigval >> 4];
+  *out_ptr++ = hexchars[sigval & 0xf];
 
-  *ptr++ = hexchars[ESP];
-  *ptr++ = ':';
-  ptr = mem2hex((char *)&registers[ESP], ptr, 4, 0); /* SP */
-  *ptr++ = ';';
+  *out_ptr++ = hexchars[ESP];
+  *out_ptr++ = ':';
+  out_ptr = mem2hex((const uint8_t *)&registers[ESP], out_ptr, 4, 0); /* SP */
+  *out_ptr++ = ';';
 
-  *ptr++ = hexchars[EBP];
-  *ptr++ = ':';
-  ptr = mem2hex((char *)&registers[EBP], ptr, 4, 0); /* FP */
-  *ptr++ = ';';
+  *out_ptr++ = hexchars[EBP];
+  *out_ptr++ = ':';
+  out_ptr = mem2hex((const uint8_t *)&registers[EBP], out_ptr, 4, 0); /* FP */
+  *out_ptr++ = ';';
 
-  *ptr++ = hexchars[PC];
-  *ptr++ = ':';
-  ptr = mem2hex((char *)&registers[PC], ptr, 4, 0); /* PC */
-  *ptr++ = ';';
+  *out_ptr++ = hexchars[PC];
+  *out_ptr++ = ':';
+  out_ptr = mem2hex((const uint8_t *)&registers[PC], out_ptr, 4, 0); /* PC */
+  *out_ptr++ = ';';
 
-  *ptr = '\0';
+  *out_ptr = '\0';
 
   putpacket(remcomOutBuffer);
 
@@ -350,11 +349,11 @@ void handle_exception(int exceptionVector) {
         remote_debug = !(remote_debug); /* toggle debug flag */
         break;
       case 'g': /* return the value of the CPU registers */
-        mem2hex((char *)registers, remcomOutBuffer, NUMREGBYTES, 0);
+        mem2hex((const uint8_t *)registers, remcomOutBuffer, NUMREGBYTES, 0);
         break;
       case 'G': /* set the value of the CPU registers - return OK */
-        hex2mem(ptr, (char *)registers, NUMREGBYTES, 0);
-        strcpy_local(remcomOutBuffer, "OK");
+        hex2mem(ptr, (uint8_t *)registers, NUMREGBYTES, 0);
+        strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
         break;
       case 'P': /* set the value of a single CPU register - return OK */
       {
@@ -362,12 +361,12 @@ void handle_exception(int exceptionVector) {
 
         if (hexToInt(&ptr, &regno) && *ptr++ == '=')
           if (regno >= 0 && regno < NUMREGS) {
-            hex2mem(ptr, (char *)&registers[regno], 4, 0);
-            strcpy_local(remcomOutBuffer, "OK");
+            hex2mem(ptr, (uint8_t *)&registers[regno], 4, 0);
+            strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
             break;
           }
 
-        strcpy_local(remcomOutBuffer, "E01");
+        strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
         break;
       }
 
@@ -379,15 +378,15 @@ void handle_exception(int exceptionVector) {
             if (hexToInt(&ptr, &length)) {
               ptr = 0;
               mem_err = 0;
-              mem2hex((char *)addr, remcomOutBuffer, length, 1);
+              mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
               if (mem_err) {
-                strcpy_local(remcomOutBuffer, "E03");
-                debug_error("memory fault");
+                strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+                debug_error((const uint8_t *)"memory fault");
               }
             }
 
         if (ptr) {
-          strcpy_local(remcomOutBuffer, "E01");
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
         }
         break;
 
@@ -399,19 +398,19 @@ void handle_exception(int exceptionVector) {
             if (hexToInt(&ptr, &length))
               if (*(ptr++) == ':') {
                 mem_err = 0;
-                hex2mem(ptr, (char *)addr, length, 1);
+                hex2mem(ptr, (uint8_t *)addr, length, 1);
 
                 if (mem_err) {
-                  strcpy_local(remcomOutBuffer, "E03");
-                  debug_error("memory fault");
+                  strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+                  debug_error((const uint8_t *)"memory fault");
                 } else {
-                  strcpy_local(remcomOutBuffer, "OK");
+                  strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
                 }
 
                 ptr = 0;
               }
         if (ptr) {
-          strcpy_local(remcomOutBuffer, "E02");
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"E02");
         }
         break;
 
