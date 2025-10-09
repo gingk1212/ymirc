@@ -47,6 +47,7 @@ run: $(TARGET)
 		-drive file=fat:rw:$(IMG_DIR),format=raw \
 		-nographic \
 		-serial mon:stdio \
+		-serial tcp::4321,server=on,wait=off \
 		-no-reboot \
 		-enable-kvm \
 		-cpu host \

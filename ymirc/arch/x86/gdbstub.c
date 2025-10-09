@@ -1,9 +1,17 @@
+#include "gdbstub.h"
+
+#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
+
+#include "interrupt.h"
+#include "log.h"
+#include "serial.h"
 
 /* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
 /* at least NUMREGBYTES*2 are needed for register packets */
 #define BUFMAX 400
+
+static Serial gdb_serial;
 
 static char initialized; /* boolean flag. != 0 means we've been initialized */
 
@@ -13,22 +21,33 @@ int remote_debug;
 static const uint8_t hexchars[] = "0123456789abcdef";
 
 /* Number of registers.  */
-#define NUMREGS 16
+#define NUMREGS_64 17
+#define NUMREGS_32 7
 
 /* Number of bytes of registers.  */
-#define NUMREGBYTES (NUMREGS * 4)
+#define NUMREGBYTES (NUMREGS_64 * 8 + NUMREGS_32 * 4)
 
 enum regnames {
-  EAX,
-  ECX,
-  EDX,
-  EBX,
-  ESP,
-  EBP,
-  ESI,
-  EDI,
-  PC /* also known as eip */,
-  PS /* also known as eflags */,
+  // 64-bit
+  RAX,
+  RBX,
+  RCX,
+  RDX,
+  RSI,
+  RDI,
+  RBP,
+  RSP,
+  R8,
+  R9,
+  R10,
+  R11,
+  R12,
+  R13,
+  R14,
+  R15,
+  RIP,
+  // 32-bit
+  EFLAGS,
   CS,
   SS,
   DS,
@@ -38,6 +57,12 @@ enum regnames {
 };
 
 #define BREAKPOINT() __asm__ volatile("int $3");
+
+/** Send a charcter to GDB. */
+static void putDebugChar(uint8_t c) { serial_write(&gdb_serial, c); }
+
+/** Read a charcter from GDB. */
+static uint8_t getDebugChar() { return serial_read_blocking(&gdb_serial); }
 
 /* Custom string copy function */
 static uint8_t *strcpy_local(uint8_t *dest, const uint8_t *src) {
@@ -93,8 +118,8 @@ uint8_t *getpacket(void) {
 
       if (checksum != xmitcsum) {
         if (remote_debug) {
-          fprintf(stderr, "bad checksum.  My count = 0x%x, sent=0x%x. buf=%s\n",
-                  checksum, xmitcsum, buffer);
+          LOG_ERROR("bad checksum.  My count = 0x%x, sent=0x%x. buf=%s\n",
+                    checksum, xmitcsum, buffer);
         }
         putDebugChar('-'); /* failed checksum */
       } else {
@@ -127,7 +152,7 @@ void putpacket(const uint8_t *buffer) {
     checksum = 0;
     count = 0;
 
-    while (ch = buffer[count]) {
+    while ((ch = buffer[count]) != '\0') {
       putDebugChar(ch);
       checksum += ch;
       count += 1;
@@ -141,7 +166,7 @@ void putpacket(const uint8_t *buffer) {
 }
 
 void debug_error(const uint8_t *format, const uint8_t *parm) {
-  if (remote_debug) fprintf(stderr, (const char *)format, (const char *)parm);
+  if (remote_debug) LOG_ERROR((const char *)format, (const char *)parm);
 }
 
 /* Address of a routine to RTE to if we get a memory fault.  */
@@ -200,7 +225,7 @@ uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count, int may_fault) {
 
 /* this function takes the 386 exception vector and attempts to
    translate this number into a unix compatible signal value */
-int computeSignal(int exceptionVector) {
+int computeSignal(uint64_t exceptionVector) {
   int sigval;
   switch (exceptionVector) {
     case 0:
@@ -258,16 +283,16 @@ int computeSignal(int exceptionVector) {
 /* WHILE WE FIND NICE HEX CHARS, BUILD AN INT */
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
-int hexToInt(const uint8_t **ptr, int *intValue) {
+int hexToNum(const uint8_t **ptr, uint64_t *num) {
   int numChars = 0;
   int hexValue;
 
-  *intValue = 0;
+  *num = 0;
 
   while (**ptr) {
     hexValue = hex(**ptr);
     if (hexValue >= 0) {
-      *intValue = (*intValue << 4) | hexValue;
+      *num = (*num << 4) | hexValue;
       numChars++;
     } else
       break;
@@ -278,22 +303,78 @@ int hexToInt(const uint8_t **ptr, int *intValue) {
   return (numChars);
 }
 
+/* Pack CPU registers from Context into a buffer following regnames order */
+static void pack_registers(Context *ctx, uint8_t *buffer) {
+  uint8_t *buf_ptr = buffer;
+
+  /* 64-bit registers (8 bytes each) - following regnames order */
+  *(uint64_t *)buf_ptr = ctx->registers.rax;
+  buf_ptr += 8; /* RAX */
+  *(uint64_t *)buf_ptr = ctx->registers.rbx;
+  buf_ptr += 8; /* RBX */
+  *(uint64_t *)buf_ptr = ctx->registers.rcx;
+  buf_ptr += 8; /* RCX */
+  *(uint64_t *)buf_ptr = ctx->registers.rdx;
+  buf_ptr += 8; /* RDX */
+  *(uint64_t *)buf_ptr = ctx->registers.rsi;
+  buf_ptr += 8; /* RSI */
+  *(uint64_t *)buf_ptr = ctx->registers.rdi;
+  buf_ptr += 8; /* RDI */
+  *(uint64_t *)buf_ptr = ctx->registers.rbp;
+  buf_ptr += 8; /* RBP */
+  *(uint64_t *)buf_ptr = ctx->registers.rsp;
+  buf_ptr += 8; /* RSP */
+  *(uint64_t *)buf_ptr = ctx->registers.r8;
+  buf_ptr += 8; /* R8 */
+  *(uint64_t *)buf_ptr = ctx->registers.r9;
+  buf_ptr += 8; /* R9 */
+  *(uint64_t *)buf_ptr = ctx->registers.r10;
+  buf_ptr += 8; /* R10 */
+  *(uint64_t *)buf_ptr = ctx->registers.r11;
+  buf_ptr += 8; /* R11 */
+  *(uint64_t *)buf_ptr = ctx->registers.r12;
+  buf_ptr += 8; /* R12 */
+  *(uint64_t *)buf_ptr = ctx->registers.r13;
+  buf_ptr += 8; /* R13 */
+  *(uint64_t *)buf_ptr = ctx->registers.r14;
+  buf_ptr += 8; /* R14 */
+  *(uint64_t *)buf_ptr = ctx->registers.r15;
+  buf_ptr += 8; /* R15 */
+  *(uint64_t *)buf_ptr = ctx->rip;
+  buf_ptr += 8; /* RIP */
+
+  /* 32-bit registers (4 bytes each) */
+  *(uint32_t *)buf_ptr = (uint32_t)(ctx->rflags & 0xFFFFFFFF);
+  buf_ptr += 4; /* EFLAGS */
+  *(uint32_t *)buf_ptr = (uint32_t)(ctx->cs & 0xFFFF);
+  buf_ptr += 4; /* CS */
+  *(uint32_t *)buf_ptr = 0;
+  buf_ptr += 4; /* TODO: SS */
+  *(uint32_t *)buf_ptr = 0;
+  buf_ptr += 4; /* TODO: DS */
+  *(uint32_t *)buf_ptr = 0;
+  buf_ptr += 4; /* TODO: ES */
+  *(uint32_t *)buf_ptr = 0;
+  buf_ptr += 4; /* TODO: FS */
+  *(uint32_t *)buf_ptr = 0;
+  buf_ptr += 4; /* TODO: GS */
+}
+
 /*
  * This function does all command procesing for interfacing to gdb.
  */
-void handle_exception(int exceptionVector) {
+void handle_exception(Context *ctx) {
   int sigval, stepping;
-  int addr, length;
+  uint64_t addr, length;
   const uint8_t *ptr;
-  int newPC;
 
   if (remote_debug) {
-    printf("vector=%d, sr=0x%x, pc=0x%x\n", exceptionVector, registers[PS],
-           registers[PC]);
+    LOG_DEBUG("vector=%d, sr=0x%x, pc=0x%x\n", ctx->vector, ctx->rflags,
+              ctx->rip);
   }
 
   /* reply to host that an exception has occurred */
-  sigval = computeSignal(exceptionVector);
+  sigval = computeSignal(ctx->vector);
 
   uint8_t *out_ptr = remcomOutBuffer;
 
@@ -301,19 +382,21 @@ void handle_exception(int exceptionVector) {
   *out_ptr++ = hexchars[sigval >> 4];
   *out_ptr++ = hexchars[sigval & 0xf];
 
-  *out_ptr++ = hexchars[ESP];
+  *out_ptr++ = hexchars[RSP];
   *out_ptr++ = ':';
-  out_ptr = mem2hex((const uint8_t *)&registers[ESP], out_ptr, 4, 0); /* SP */
+  out_ptr =
+      mem2hex((const uint8_t *)&ctx->registers.rsp, out_ptr, 8, 0); /* SP */
   *out_ptr++ = ';';
 
-  *out_ptr++ = hexchars[EBP];
+  *out_ptr++ = hexchars[RBP];
   *out_ptr++ = ':';
-  out_ptr = mem2hex((const uint8_t *)&registers[EBP], out_ptr, 4, 0); /* FP */
+  out_ptr =
+      mem2hex((const uint8_t *)&ctx->registers.rbp, out_ptr, 8, 0); /* FP */
   *out_ptr++ = ';';
 
-  *out_ptr++ = hexchars[PC];
+  *out_ptr++ = hexchars[RIP];
   *out_ptr++ = ':';
-  out_ptr = mem2hex((const uint8_t *)&registers[PC], out_ptr, 4, 0); /* PC */
+  out_ptr = mem2hex((const uint8_t *)&ctx->rip, out_ptr, 8, 0); /* PC */
   *out_ptr++ = ';';
 
   *out_ptr = '\0';
@@ -337,18 +420,23 @@ void handle_exception(int exceptionVector) {
         remote_debug = !(remote_debug); /* toggle debug flag */
         break;
       case 'g': /* return the value of the CPU registers */
-        mem2hex((const uint8_t *)registers, remcomOutBuffer, NUMREGBYTES, 0);
-        break;
+      {
+        uint8_t register_buffer[NUMREGBYTES];
+        pack_registers(ctx, register_buffer);
+        mem2hex(register_buffer, remcomOutBuffer, NUMREGBYTES, 0);
+      } break;
+
+#if 0  // TODO: Support commands like 'G' and 'P' to write registers.
       case 'G': /* set the value of the CPU registers - return OK */
         hex2mem(ptr, (uint8_t *)registers, NUMREGBYTES, 0);
         strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
         break;
       case 'P': /* set the value of a single CPU register - return OK */
       {
-        int regno;
+        uint64_t regno;
 
-        if (hexToInt(&ptr, &regno) && *ptr++ == '=')
-          if (regno >= 0 && regno < NUMREGS) {
+        if (hexToNum(&ptr, &regno) && *ptr++ == '=')
+          if (regno < NUMREGS_64 + NUMREGS_32) {
             hex2mem(ptr, (uint8_t *)&registers[regno], 4, 0);
             strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
             break;
@@ -357,13 +445,14 @@ void handle_exception(int exceptionVector) {
         strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
         break;
       }
+#endif
 
-        /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
+      /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
       case 'm':
         /* TRY TO READ %x,%x.  IF SUCCEED, SET PTR = 0 */
-        if (hexToInt(&ptr, &addr))
+        if (hexToNum(&ptr, &addr))
           if (*(ptr++) == ',')
-            if (hexToInt(&ptr, &length)) {
+            if (hexToNum(&ptr, &length)) {
               ptr = 0;
               mem_err = 0;
               mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
@@ -378,12 +467,12 @@ void handle_exception(int exceptionVector) {
         }
         break;
 
-        /* MAA..AA,LLLL: Write LLLL bytes at address AA.AA return OK */
+      /* MAA..AA,LLLL: Write LLLL bytes at address AA.AA return OK */
       case 'M':
         /* TRY TO READ '%x,%x:'.  IF SUCCEED, SET PTR = 0 */
-        if (hexToInt(&ptr, &addr))
+        if (hexToNum(&ptr, &addr))
           if (*(ptr++) == ',')
-            if (hexToInt(&ptr, &length))
+            if (hexToNum(&ptr, &length))
               if (*(ptr++) == ':') {
                 mem_err = 0;
                 hex2mem(ptr, (uint8_t *)addr, length, 1);
@@ -402,26 +491,24 @@ void handle_exception(int exceptionVector) {
         }
         break;
 
-        /* cAA..AA    Continue at address AA..AA(optional) */
-        /* sAA..AA   Step one instruction from AA..AA(optional) */
+      /* cAA..AA    Continue at address AA..AA(optional) */
+      /* sAA..AA   Step one instruction from AA..AA(optional) */
       case 's':
         stepping = 1;
+        [[fallthrough]];
       case 'c':
         /* try to read optional parameter, pc unchanged if no parm */
-        if (hexToInt(&ptr, &addr)) registers[PC] = addr;
-
-        newPC = registers[PC];
+        if (hexToNum(&ptr, &addr)) ctx->rip = addr;
 
         /* clear the trace bit */
-        registers[PS] &= 0xfffffeff;
+        ctx->rflags &= 0xfffffffffffffeff;
 
         /* set the trace bit if we're stepping */
-        if (stepping) registers[PS] |= 0x100;
+        if (stepping) ctx->rflags |= 0x100;
 
-        _returnFromException(); /* this is a jump */
-        break;
+        return;
 
-        /* kill the program */
+      /* kill the program */
       case 'k': /* do nothing */
 #if 0
         /* Huh? This doesn't look like "nothing".
@@ -436,15 +523,16 @@ void handle_exception(int exceptionVector) {
   }
 }
 
-/* this function is used to set up exception handlers for tracing and
-   breakpoints */
-void set_debug_traps(void) { initialized = 1; }
+void gdbstub_init(void) {
+  // Initialize COM2 for GDB communication
+  serial_init(&gdb_serial, SERIAL_PORT_COM2, 115200);
 
-/* This function will generate a breakpoint exception.  It is used at the
-   beginning of a program to sync up with a debugger and can be used
-   otherwise as a quick means to stop program execution and "break" into
-   the debugger.  */
+  // Set up exception handlers for tracing and breakpoints
+  register_handler(3, handle_exception);
 
-void breakpoint(void) {
+  initialized = 1;
+}
+
+void gdbstub_breakpoint(void) {
   if (initialized) BREAKPOINT();
 }

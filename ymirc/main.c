@@ -11,6 +11,7 @@
 #include "serial.h"
 
 #if defined(__x86_64__)
+#include "arch/x86/gdbstub.h"
 #include "arch/x86/interrupt.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/vm.h"
@@ -90,6 +91,10 @@ void kernel_main(BootInfo *boot_info) {
   register_handler(irq_serial1 + primary_vector_offset, blob_irq_handler);
   unset_mask(irq_serial1);
   enable_serial_interrupt(&serial);
+
+  // Initialize gdbstub and break.
+  gdbstub_init();
+  gdbstub_breakpoint();
 
   // Create VM instance.
   Vm vm = vm_new(&serial);
