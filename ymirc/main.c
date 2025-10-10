@@ -92,9 +92,11 @@ void kernel_main(BootInfo *boot_info) {
   unset_mask(irq_serial1);
   enable_serial_interrupt(&serial);
 
+#ifdef CONFIG_GDBSTUB
   // Initialize gdbstub and break.
   gdbstub_init();
   gdbstub_breakpoint();
+#endif /* CONFIG_GDBSTUB */
 
   // Create VM instance.
   Vm vm = vm_new(&serial);

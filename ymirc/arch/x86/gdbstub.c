@@ -1,3 +1,5 @@
+#ifdef CONFIG_GDBSTUB
+
 #include "gdbstub.h"
 
 #include <stddef.h>
@@ -536,3 +538,5 @@ void gdbstub_init(void) {
 void gdbstub_breakpoint(void) {
   if (initialized) BREAKPOINT();
 }
+
+#endif /* CONFIG_GDBSTUB */

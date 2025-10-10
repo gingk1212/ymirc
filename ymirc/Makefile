@@ -17,6 +17,9 @@ CFLAGS = -I. -I$(EFI_INC) -ffreestanding -mno-red-zone -m64 -nostdlib -Wall -Wex
 ifeq ($(origin LOG_LEVEL), command line)
 	CFLAGS += -DLOG_LEVEL=$(LOG_LEVEL)
 endif
+ifeq ($(CONFIG_GDBSTUB), 1)
+	CFLAGS += -DCONFIG_GDBSTUB -O0 -g
+endif
 LDFLAGS = -nostdlib -e kernel_entry -T linker.ld
 
 CFLAGS_FOR_TEST = -I. -I$(EFI_INC) -Wall -Wextra -std=c17 -g
