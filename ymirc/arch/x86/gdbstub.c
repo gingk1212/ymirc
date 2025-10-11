@@ -15,10 +15,11 @@
 
 static Serial gdb_serial;
 
-static char initialized; /* boolean flag. != 0 means we've been initialized */
+/* boolean flag. != 0 means we've been initialized */
+static char initialized;
 
-int remote_debug;
 /*  debug >  0 prints ill-formed commands in valid packets & checksum errors */
+int remote_debug;
 
 static const uint8_t hexchars[] = "0123456789abcdef";
 
@@ -60,7 +61,7 @@ enum regnames {
 
 #define BREAKPOINT() __asm__ volatile("int $3");
 
-void handle_exception(Context *ctx);
+static void handle_exception(Context *ctx);
 
 /** Send a charcter to GDB. */
 static void putDebugChar(uint8_t c) { serial_write(&gdb_serial, c); }
@@ -75,7 +76,7 @@ static uint8_t *strcpy_local(uint8_t *dest, const uint8_t *src) {
   return dest;
 }
 
-int hex(uint8_t ch) {
+static int hex(uint8_t ch) {
   if ((ch >= 'a') && (ch <= 'f')) return (ch - 'a' + 10);
   if ((ch >= '0') && (ch <= '9')) return (ch - '0');
   if ((ch >= 'A') && (ch <= 'F')) return (ch - 'A' + 10);
@@ -117,9 +118,8 @@ static void append_hex_value(uint8_t *dest, int value) {
   *buf_ptr = '\0';
 }
 
-/* scan for the sequence $<data>#<checksum>     */
-
-uint8_t *getpacket(void) {
+/* scan for the sequence $<data>#<checksum> */
+static uint8_t *getpacket(void) {
   uint8_t *buffer = &remcomInBuffer[0];
   uint8_t checksum;
   uint8_t xmitcsum;
@@ -176,8 +176,7 @@ uint8_t *getpacket(void) {
 }
 
 /* send the packet in buffer.  */
-
-void putpacket(const uint8_t *buffer) {
+static void putpacket(const uint8_t *buffer) {
   uint8_t checksum;
   int count;
   uint8_t ch;
@@ -201,7 +200,7 @@ void putpacket(const uint8_t *buffer) {
   } while (getDebugChar() != '+');
 }
 
-void debug_error(const uint8_t *format, const uint8_t *parm) {
+static void debug_error(const uint8_t *format, const uint8_t *parm) {
   if (remote_debug) LOG_ERROR((const char *)format, (const char *)parm);
 }
 
@@ -213,7 +212,7 @@ static volatile int mem_err = 0;
 static volatile uint64_t gdb_fault_address = 0;
 
 /* Memory fault handler for safe memory access during GDB operations. */
-void gdb_memory_fault_handler(Context *ctx) {
+static void gdb_memory_fault_handler(Context *ctx) {
   mem_err = 1;
 
   // Get fault address from CR2 register for page faults.
@@ -232,12 +231,12 @@ void gdb_memory_fault_handler(Context *ctx) {
    that the compiler won't save any registers (if there is a fault
    to mem_fault, they won't get restored, so there better not be any
    saved).  */
-uint8_t get_char(const uint8_t *addr) { return *addr; }
+static uint8_t get_char(const uint8_t *addr) { return *addr; }
 
-void set_char(uint8_t *addr, uint8_t val) { *addr = val; }
+static void set_char(uint8_t *addr, uint8_t val) { *addr = val; }
 
 /* Safe memory read function with fault detection */
-uint8_t safe_get_char(const uint8_t *addr) {
+static uint8_t safe_get_char(const uint8_t *addr) {
   // Reset error flag.
   mem_err = 0;
 
@@ -260,7 +259,7 @@ uint8_t safe_get_char(const uint8_t *addr) {
 }
 
 /* Safe memory write function with fault detection. */
-void safe_set_char(uint8_t *addr, uint8_t val) {
+static void safe_set_char(uint8_t *addr, uint8_t val) {
   // Reset error flag.
   mem_err = 0;
 
@@ -279,7 +278,8 @@ void safe_set_char(uint8_t *addr, uint8_t val) {
 /* return a pointer to the last char put in buf (null) */
 /* If MAY_FAULT is non-zero, use safe memory access with fault detection;
    if zero treat a fault like any other fault in the stub.  */
-uint8_t *mem2hex(const uint8_t *mem, uint8_t *buf, int count, int may_fault) {
+static uint8_t *mem2hex(const uint8_t *mem, uint8_t *buf, int count,
+                        int may_fault) {
   int i;
   uint8_t ch;
 
@@ -300,7 +300,8 @@ uint8_t *mem2hex(const uint8_t *mem, uint8_t *buf, int count, int may_fault) {
 /* convert the hex array pointed to by buf into binary to be placed in mem */
 /* return a pointer to the character AFTER the last byte written */
 /* If MAY_FAULT is non-zero, use safe memory access with fault detection */
-uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count, int may_fault) {
+static uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count,
+                        int may_fault) {
   int i;
   uint8_t ch;
 
@@ -319,7 +320,7 @@ uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count, int may_fault) {
 
 /* this function takes the 386 exception vector and attempts to
    translate this number into a unix compatible signal value */
-int computeSignal(uint64_t exceptionVector) {
+static int computeSignal(uint64_t exceptionVector) {
   int sigval;
   switch (exceptionVector) {
     case 0:
@@ -377,7 +378,7 @@ int computeSignal(uint64_t exceptionVector) {
 /* WHILE WE FIND NICE HEX CHARS, BUILD AN INT */
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
-int hexToNum(const uint8_t **ptr, uint64_t *num) {
+static int hexToNum(const uint8_t **ptr, uint64_t *num) {
   int numChars = 0;
   int hexValue;
 
@@ -457,7 +458,7 @@ static void pack_registers(Context *ctx, uint8_t *buffer) {
 /*
  * This function does all command procesing for interfacing to gdb.
  */
-void handle_exception(Context *ctx) {
+static void handle_exception(Context *ctx) {
   int sigval, stepping;
   uint64_t addr, length;
   const uint8_t *ptr;
