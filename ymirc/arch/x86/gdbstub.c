@@ -85,6 +85,38 @@ int hex(uint8_t ch) {
 static uint8_t remcomInBuffer[BUFMAX];
 static uint8_t remcomOutBuffer[BUFMAX];
 
+/* Check if string starts with a given prefix. */
+static int starts_with(const uint8_t *str, const uint8_t *prefix) {
+  while (*prefix != '\0') {
+    if (*str != *prefix) {
+      return 0;
+    }
+    str++;
+    prefix++;
+  }
+  return 1;
+}
+
+/* Convert an integer value to hexadecimal string and append to buffer. */
+static void append_hex_value(uint8_t *dest, int value) {
+  int i;
+  int started = 0;
+  uint8_t *buf_ptr = dest;
+
+  // Find end of current string
+  while (*buf_ptr) buf_ptr++;
+
+  // Convert value to hex string (process 32-bit value, 4 bits at a time)
+  for (i = 28; i >= 0; i -= 4) {
+    int nibble = (value >> i) & 0xF;
+    if (nibble != 0 || started || i == 0) {
+      *buf_ptr++ = hexchars[nibble];
+      started = 1;
+    }
+  }
+  *buf_ptr = '\0';
+}
+
 /* scan for the sequence $<data>#<checksum>     */
 
 uint8_t *getpacket(void) {
@@ -576,6 +608,32 @@ void handle_exception(Context *ctx) {
            m68k-stub.c and sparc-stub.c don't have it.  */
         BREAKPOINT();
 #endif
+        break;
+
+      case 'q':
+        if (starts_with(ptr, (const uint8_t *)"Supported")) {
+          // Reply with PacketSize only.
+          // Format: PacketSize=XXX where XXX is BUFMAX in hex.
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"PacketSize=");
+          append_hex_value(remcomOutBuffer, BUFMAX);
+        } else if (starts_with(ptr, (const uint8_t *)"C")) {
+          // qC: Return current thread ID.
+          // For single-threaded environment, always return thread ID 1.
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"QC1");
+        } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
+          // qfThreadInfo: Return first thread in thread list.
+          // Format: m<thread-id> where thread-id is in hex.
+          // For single-threaded environment, return thread ID 1.
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"m1");
+        } else if (starts_with(ptr, (const uint8_t *)"sThreadInfo")) {
+          // qsThreadInfo: Return subsequent threads.
+          // Format: m<thread-id>[,<thread-id>...] or 'l' for end of list.
+          // Since we only have one thread, return 'l' (end of list).
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"l");
+        } else {
+          // Other q commands are not supported - return empty response.
+          remcomOutBuffer[0] = '\0';
+        }
         break;
     } /* switch */
 
