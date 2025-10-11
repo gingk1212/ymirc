@@ -464,12 +464,14 @@ void handle_exception(Context *ctx) {
   *out_ptr = '\0';
 
   putpacket(remcomOutBuffer);
+  LOG_DEBUG("gdbstub >> %s\n", remcomOutBuffer);
 
   stepping = 0;
 
   while (1 == 1) {
     remcomOutBuffer[0] = 0;
     ptr = getpacket();
+    LOG_DEBUG("gdbstub << %s\n", remcomInBuffer);
 
     switch (*ptr++) {
       case '?':
@@ -579,6 +581,7 @@ void handle_exception(Context *ctx) {
 
     /* reply to the request */
     putpacket(remcomOutBuffer);
+    LOG_DEBUG("gdbstub >> %s\n", remcomOutBuffer);
   }
 }
 
