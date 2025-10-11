@@ -60,6 +60,8 @@ enum regnames {
 
 #define BREAKPOINT() __asm__ volatile("int $3");
 
+void handle_exception(Context *ctx);
+
 /** Send a charcter to GDB. */
 static void putDebugChar(uint8_t c) { serial_write(&gdb_serial, c); }
 
@@ -171,14 +173,28 @@ void debug_error(const uint8_t *format, const uint8_t *parm) {
   if (remote_debug) LOG_ERROR((const char *)format, (const char *)parm);
 }
 
-/* Address of a routine to RTE to if we get a memory fault.  */
-static void (*volatile mem_fault_routine)() = NULL;
-
 /* Indicate to caller of mem2hex or hex2mem that there has been an
    error.  */
 static volatile int mem_err = 0;
 
-void set_mem_err(void) { mem_err = 1; }
+/* Fault address for debugging purposes. */
+static volatile uint64_t gdb_fault_address = 0;
+
+/* Memory fault handler for safe memory access during GDB operations. */
+void gdb_memory_fault_handler(Context *ctx) {
+  mem_err = 1;
+
+  // Get fault address from CR2 register for page faults.
+  if (ctx->vector == 14) {
+    __asm__ volatile("movq %%cr2, %0" : "=r"(gdb_fault_address));
+  }
+
+  // TODO: Skip the faulting instruction by advancing RIP. For simple MOV
+  // instructions, we use a basic increment.
+  // This is a simplified approach - in production, proper instruction decoding
+  // would be required for accurate instruction length.
+  ctx->rip += 1;
+}
 
 /* These are separate functions so that they are so short and sweet
    that the compiler won't save any registers (if there is a fault
@@ -188,41 +204,85 @@ uint8_t get_char(const uint8_t *addr) { return *addr; }
 
 void set_char(uint8_t *addr, uint8_t val) { *addr = val; }
 
+/* Safe memory read function with fault detection */
+uint8_t safe_get_char(const uint8_t *addr) {
+  // Reset error flag.
+  mem_err = 0;
+
+  // Temporarily register fault handlers for memory exceptions.
+  register_handler(13, gdb_memory_fault_handler);  // General Protection Fault
+  register_handler(14, gdb_memory_fault_handler);  // Page Fault
+
+  uint8_t result = *addr;
+
+  // If fault occurred, return 0 as safe default.
+  if (mem_err) {
+    result = 0;
+  }
+
+  // Restore original exception handler.
+  register_handler(13, handle_exception);
+  register_handler(14, handle_exception);
+
+  return result;
+}
+
+/* Safe memory write function with fault detection. */
+void safe_set_char(uint8_t *addr, uint8_t val) {
+  // Reset error flag.
+  mem_err = 0;
+
+  // Temporarily register fault handlers for memory exceptions.
+  register_handler(13, gdb_memory_fault_handler);  // General Protection Fault
+  register_handler(14, gdb_memory_fault_handler);  // Page Fault
+
+  *addr = val;
+
+  // Restore original exception handler.
+  register_handler(13, handle_exception);
+  register_handler(14, handle_exception);
+}
+
 /* convert the memory pointed to by mem into hex, placing result in buf */
 /* return a pointer to the last char put in buf (null) */
-/* If MAY_FAULT is non-zero, then we should set mem_err in response to
-   a fault; if zero treat a fault like any other fault in the stub.  */
+/* If MAY_FAULT is non-zero, use safe memory access with fault detection;
+   if zero treat a fault like any other fault in the stub.  */
 uint8_t *mem2hex(const uint8_t *mem, uint8_t *buf, int count, int may_fault) {
   int i;
   uint8_t ch;
 
-  if (may_fault) mem_fault_routine = set_mem_err;
   for (i = 0; i < count; i++) {
-    ch = get_char(mem++);
-    if (may_fault && mem_err) return (buf);
+    if (may_fault) {
+      ch = safe_get_char(mem++);
+      if (mem_err) return buf;  // Exit early on fault.
+    } else {
+      ch = get_char(mem++);
+    }
     *buf++ = hexchars[ch >> 4];
     *buf++ = hexchars[ch % 16];
   }
   *buf = 0;
-  if (may_fault) mem_fault_routine = NULL;
-  return (buf);
+  return buf;
 }
 
 /* convert the hex array pointed to by buf into binary to be placed in mem */
 /* return a pointer to the character AFTER the last byte written */
+/* If MAY_FAULT is non-zero, use safe memory access with fault detection */
 uint8_t *hex2mem(const uint8_t *buf, uint8_t *mem, int count, int may_fault) {
   int i;
   uint8_t ch;
 
-  if (may_fault) mem_fault_routine = set_mem_err;
   for (i = 0; i < count; i++) {
     ch = hex(*buf++) << 4;
     ch = ch + hex(*buf++);
-    set_char(mem++, ch);
-    if (may_fault && mem_err) return (mem);
+    if (may_fault) {
+      safe_set_char(mem++, ch);
+      if (mem_err) return mem;  // Exit early on fault.
+    } else {
+      set_char(mem++, ch);
+    }
   }
-  if (may_fault) mem_fault_routine = NULL;
-  return (mem);
+  return mem;
 }
 
 /* this function takes the 386 exception vector and attempts to
@@ -456,7 +516,6 @@ void handle_exception(Context *ctx) {
           if (*(ptr++) == ',')
             if (hexToNum(&ptr, &length)) {
               ptr = 0;
-              mem_err = 0;
               mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
               if (mem_err) {
                 strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
@@ -476,9 +535,7 @@ void handle_exception(Context *ctx) {
           if (*(ptr++) == ',')
             if (hexToNum(&ptr, &length))
               if (*(ptr++) == ':') {
-                mem_err = 0;
                 hex2mem(ptr, (uint8_t *)addr, length, 1);
-
                 if (mem_err) {
                   strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
                   debug_error((const uint8_t *)"memory fault", NULL);
