@@ -636,6 +636,35 @@ static void handle_exception(Context *ctx) {
           remcomOutBuffer[0] = '\0';
         }
         break;
+
+      /* Set thread for subsequent operations.
+       * Format: Hc-1 or Hg0 where:
+       *   c = continue/step operations
+       *   g = other operations
+       *   -1 = all threads, 0 = any thread, >0 = specific thread
+       */
+      case 'H':
+        if (*ptr == 'g' || *ptr == 'c') {
+          int is_negative = 0;
+          uint64_t num;
+          ptr++;
+          // Check for negative thread ID. (e.g., -1 for "all threads")
+          if (*ptr == '-') {
+            is_negative = 1;
+            ptr++;
+          }
+          // Only accept -1 (all), 0 (any) or 1 (our single thread).
+          if (hexToNum(&ptr, &num) > 0 &&
+              ((is_negative && num == 1) || (!is_negative && num == 0) ||
+               (!is_negative && num == 1))) {
+            strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+          } else {
+            strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+          }
+        } else {
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+        }
+        break;
     } /* switch */
 
     /* reply to the request */
