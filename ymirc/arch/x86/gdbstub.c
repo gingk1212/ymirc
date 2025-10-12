@@ -523,6 +523,108 @@ static void handle_exception(Context *ctx) {
         mem2hex(register_buffer, remcomOutBuffer, NUMREGBYTES, 0);
       } break;
 
+      case 'p': /* read a single register value */
+      {
+        uint64_t regno;
+
+        if (hexToNum(&ptr, &regno)) {
+          uint32_t reg_value_32;
+
+          // Get register value based on regnames enum order
+          switch (regno) {
+            case RAX:
+              mem2hex((const uint8_t *)&ctx->registers.rax, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RBX:
+              mem2hex((const uint8_t *)&ctx->registers.rbx, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RCX:
+              mem2hex((const uint8_t *)&ctx->registers.rcx, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RDX:
+              mem2hex((const uint8_t *)&ctx->registers.rdx, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RSI:
+              mem2hex((const uint8_t *)&ctx->registers.rsi, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RDI:
+              mem2hex((const uint8_t *)&ctx->registers.rdi, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RBP:
+              mem2hex((const uint8_t *)&ctx->registers.rbp, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RSP:
+              mem2hex((const uint8_t *)&ctx->registers.rsp, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R8:
+              mem2hex((const uint8_t *)&ctx->registers.r8, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R9:
+              mem2hex((const uint8_t *)&ctx->registers.r9, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R10:
+              mem2hex((const uint8_t *)&ctx->registers.r10, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R11:
+              mem2hex((const uint8_t *)&ctx->registers.r11, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R12:
+              mem2hex((const uint8_t *)&ctx->registers.r12, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R13:
+              mem2hex((const uint8_t *)&ctx->registers.r13, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R14:
+              mem2hex((const uint8_t *)&ctx->registers.r14, remcomOutBuffer, 8,
+                      0);
+              break;
+            case R15:
+              mem2hex((const uint8_t *)&ctx->registers.r15, remcomOutBuffer, 8,
+                      0);
+              break;
+            case RIP:
+              mem2hex((const uint8_t *)&ctx->rip, remcomOutBuffer, 8, 0);
+              break;
+            case EFLAGS:
+              reg_value_32 = (uint32_t)(ctx->rflags & 0xFFFFFFFF);
+              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+              break;
+            case CS:
+              reg_value_32 = (uint32_t)(ctx->cs & 0xFFFF);
+              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+              break;
+            case SS:
+            case DS:
+            case ES:
+            case FS:
+            case GS:
+              // TODO: These segment registers are not yet stored in Context
+              reg_value_32 = 0;
+              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+              break;
+            default:
+              strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+              break;
+          }
+        } else {
+          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+        }
+      } break;
+
 #if 0  // TODO: Support commands like 'G' and 'P' to write registers.
       case 'G': /* set the value of the CPU registers - return OK */
         hex2mem(ptr, (uint8_t *)registers, NUMREGBYTES, 0);
