@@ -70,9 +70,10 @@ static void putDebugChar(uint8_t c) { serial_write(&gdb_serial, c); }
 static uint8_t getDebugChar() { return serial_read_blocking(&gdb_serial); }
 
 /* Custom string copy function */
-static uint8_t *strcpy_local(uint8_t *dest, const uint8_t *src) {
+static uint8_t *strcpy_local(uint8_t *dest, const char *src) {
   uint8_t *d = dest;
-  while ((*d++ = *src++) != '\0');
+  const uint8_t *s = (const uint8_t *)src;
+  while ((*d++ = *s++) != '\0');
   return dest;
 }
 
@@ -585,11 +586,11 @@ static int handle_read_register(Context *ctx, const uint8_t *ptr) {
         mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
         break;
       default:
-        strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+        strcpy_local(remcomOutBuffer, "E01");
         break;
     }
   } else {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+    strcpy_local(remcomOutBuffer, "E01");
   }
   return 0;
 }
@@ -601,11 +602,11 @@ static int handle_read_memory(const uint8_t *ptr) {
   if (hexToNum(&ptr, &addr) && *(ptr++) == ',' && hexToNum(&ptr, &length)) {
     mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
     if (mem_err) {
-      strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+      strcpy_local(remcomOutBuffer, "E03");
       debug_error((const uint8_t *)"memory fault", NULL);
     }
   } else {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+    strcpy_local(remcomOutBuffer, "E01");
   }
   return 0;
 }
@@ -618,13 +619,13 @@ static int handle_write_memory(const uint8_t *ptr) {
       *(ptr++) == ':') {
     hex2mem(ptr, (uint8_t *)addr, length, 1);
     if (mem_err) {
-      strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+      strcpy_local(remcomOutBuffer, "E03");
       debug_error((const uint8_t *)"memory fault", NULL);
     } else {
-      strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+      strcpy_local(remcomOutBuffer, "OK");
     }
   } else {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"E02");
+    strcpy_local(remcomOutBuffer, "E02");
   }
   return 0;
 }
@@ -632,14 +633,14 @@ static int handle_write_memory(const uint8_t *ptr) {
 /* Handle 'q' command - query commands. */
 static int handle_query(const uint8_t *ptr) {
   if (starts_with(ptr, (const uint8_t *)"Supported")) {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"PacketSize=");
+    strcpy_local(remcomOutBuffer, "PacketSize=");
     append_hex_value(remcomOutBuffer, BUFMAX);
   } else if (starts_with(ptr, (const uint8_t *)"C")) {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"QC1");
+    strcpy_local(remcomOutBuffer, "QC1");
   } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"m1");
+    strcpy_local(remcomOutBuffer, "m1");
   } else if (starts_with(ptr, (const uint8_t *)"sThreadInfo")) {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"l");
+    strcpy_local(remcomOutBuffer, "l");
   } else {
     remcomOutBuffer[0] = '\0';
   }
@@ -661,12 +662,12 @@ static int handle_set_thread(const uint8_t *ptr) {
     if (hexToNum(&ptr, &num) > 0 &&
         ((is_negative && num == 1) || (!is_negative && num == 0) ||
          (!is_negative && num == 1))) {
-      strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+      strcpy_local(remcomOutBuffer, "OK");
     } else {
-      strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+      strcpy_local(remcomOutBuffer, "E01");
     }
   } else {
-    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+    strcpy_local(remcomOutBuffer, "E01");
   }
   return 0;
 }
