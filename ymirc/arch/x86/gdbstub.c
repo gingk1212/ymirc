@@ -767,7 +767,21 @@ void gdbstub_init(void) {
   serial_init(&gdb_serial, SERIAL_PORT_COM2, 115200);
 
   // Set up exception handlers for tracing and breakpoints
+  register_handler(0, handle_exception);
+  register_handler(1, handle_exception);
   register_handler(3, handle_exception);
+  register_handler(4, handle_exception);
+  register_handler(5, handle_exception);
+  register_handler(6, handle_exception);
+  register_handler(7, handle_exception);
+  register_handler(8, handle_exception);
+  register_handler(9, handle_exception);
+  register_handler(10, handle_exception);
+  register_handler(11, handle_exception);
+  register_handler(12, handle_exception);
+  register_handler(13, handle_exception);
+  register_handler(14, handle_exception);
+  register_handler(16, handle_exception);
 
   initialized = 1;
 }
