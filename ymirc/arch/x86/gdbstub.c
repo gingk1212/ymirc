@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "asm.h"
 #include "interrupt.h"
 #include "log.h"
 #include "serial.h"
@@ -63,6 +64,14 @@ enum regnames {
 
 static void handle_exception(Context *ctx);
 
+/* Hardware breakpoint management */
+#define MAX_HW_BREAKPOINTS 4
+
+static struct {
+  uint64_t addr;
+  int in_use;
+} hw_breakpoints[MAX_HW_BREAKPOINTS];
+
 /** Send a charcter to GDB. */
 static void putDebugChar(uint8_t c) { serial_write(&gdb_serial, c); }
 
@@ -97,6 +106,17 @@ static int starts_with(const uint8_t *str, const uint8_t *prefix) {
     prefix++;
   }
   return 1;
+}
+
+/* Append a string to the end of another string. */
+static void append_string(uint8_t *dest, const uint8_t *src) {
+  uint8_t *buf_ptr = dest;
+
+  // Find end of current string
+  while (*buf_ptr) buf_ptr++;
+
+  // Copy source string to end using strcpy_local
+  strcpy_local(buf_ptr, (const char *)src);
 }
 
 /* Convert an integer value to hexadecimal string and append to buffer. */
@@ -399,6 +419,60 @@ static int hexToNum(const uint8_t **ptr, uint64_t *num) {
   return (numChars);
 }
 
+/* Set hardware breakpoint. */
+static int set_hw_breakpoint(uint64_t addr) {
+  int i;
+  uint64_t dr7;
+
+  // Find free slot
+  for (i = 0; i < MAX_HW_BREAKPOINTS; i++) {
+    if (!hw_breakpoints[i].in_use) {
+      // Set address in DRi
+      write_dr(i, addr);
+
+      // Enable breakpoint in DR7
+      dr7 = read_dr(7);
+      // Set local enable bit (L0-L3) and RW/LEN bits for execution breakpoint
+      // Bit layout: [31:16] LEN3 RW3 LEN2 RW2 LEN1 RW1 LEN0 RW0
+      //             [15:0]  ... GE LE G3 L3 G2 L2 G1 L1 G0 L0
+      dr7 |= (1ULL << (i * 2));  // Li bit
+      // RW=00 (execution), LEN=00 (1 byte)
+      dr7 &= ~(0xFULL << (16 + i * 4));
+      write_dr(7, dr7);
+
+      hw_breakpoints[i].addr = addr;
+      hw_breakpoints[i].in_use = 1;
+
+      return 0;  // Success
+    }
+  }
+  return -1;  // No free slot
+}
+
+/* Remove hardware breakpoint. */
+static int remove_hw_breakpoint(uint64_t addr) {
+  int i;
+  uint64_t dr7;
+
+  for (i = 0; i < MAX_HW_BREAKPOINTS; i++) {
+    if (hw_breakpoints[i].in_use && hw_breakpoints[i].addr == addr) {
+      // Clear address
+      write_dr(i, 0);
+
+      // Disable in DR7
+      dr7 = read_dr(7);
+      dr7 &= ~(1ULL << (i * 2));  // Clear Li bit
+      write_dr(7, dr7);
+
+      hw_breakpoints[i].in_use = 0;
+      hw_breakpoints[i].addr = 0;
+
+      return 0;  // Success
+    }
+  }
+  return -1;  // Not found
+}
+
 /* Pack CPU registers from Context into a buffer following regnames order */
 static void pack_registers(Context *ctx, uint8_t *buffer) {
   uint8_t *buf_ptr = buffer;
@@ -635,6 +709,7 @@ static int handle_query(const uint8_t *ptr) {
   if (starts_with(ptr, (const uint8_t *)"Supported")) {
     strcpy_local(remcomOutBuffer, "PacketSize=");
     append_hex_value(remcomOutBuffer, BUFMAX);
+    append_string(remcomOutBuffer, (const uint8_t *)";hwbreak+");
   } else if (starts_with(ptr, (const uint8_t *)"C")) {
     strcpy_local(remcomOutBuffer, "QC1");
   } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
@@ -668,6 +743,38 @@ static int handle_set_thread(const uint8_t *ptr) {
     }
   } else {
     strcpy_local(remcomOutBuffer, "E01");
+  }
+  return 0;
+}
+
+/* Handle 'Z1' command - insert hardware breakpoint. */
+static int handle_insert_hw_breakpoint(const uint8_t *ptr) {
+  uint64_t addr, kind;
+
+  if (hexToNum(&ptr, &addr) && *(ptr++) == ',' && hexToNum(&ptr, &kind)) {
+    if (set_hw_breakpoint(addr) == 0) {
+      strcpy_local(remcomOutBuffer, "OK");
+    } else {
+      strcpy_local(remcomOutBuffer, "E01");  // No resources
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, "E02");  // Invalid format
+  }
+  return 0;
+}
+
+/* Handle 'z1' command - remove hardware breakpoint. */
+static int handle_remove_hw_breakpoint(const uint8_t *ptr) {
+  uint64_t addr, kind;
+
+  if (hexToNum(&ptr, &addr) && *(ptr++) == ',' && hexToNum(&ptr, &kind)) {
+    if (remove_hw_breakpoint(addr) == 0) {
+      strcpy_local(remcomOutBuffer, "OK");
+    } else {
+      strcpy_local(remcomOutBuffer, "E01");  // Not found
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, "E02");  // Invalid format
   }
   return 0;
 }
@@ -749,6 +856,28 @@ static void handle_exception(Context *ctx) {
       case 'H':
         should_exit = handle_set_thread(ptr);
         break;
+      case 'Z':
+        if (*ptr == '1') {  // Z1 - insert hardware breakpoint
+          ptr++;
+          if (*ptr == ',') {
+            ptr++;
+            should_exit = handle_insert_hw_breakpoint(ptr);
+          }
+        } else {
+          remcomOutBuffer[0] = '\0';  // Unsupported
+        }
+        break;
+      case 'z':
+        if (*ptr == '1') {  // z1 - remove hardware breakpoint
+          ptr++;
+          if (*ptr == ',') {
+            ptr++;
+            should_exit = handle_remove_hw_breakpoint(ptr);
+          }
+        } else {
+          remcomOutBuffer[0] = '\0';  // Unsupported
+        }
+        break;
       default:
         /* Unknown command - return empty response */
         remcomOutBuffer[0] = '\0';
@@ -766,6 +895,20 @@ static void handle_exception(Context *ctx) {
 void gdbstub_init(void) {
   // Initialize COM2 for GDB communication
   serial_init(&gdb_serial, SERIAL_PORT_COM2, 115200);
+
+  // Initialize hardware breakpoint tracking
+  for (int i = 0; i < MAX_HW_BREAKPOINTS; i++) {
+    hw_breakpoints[i].in_use = 0;
+    hw_breakpoints[i].addr = 0;
+  }
+
+  // Clear all debug registers
+  write_dr(0, 0);
+  write_dr(1, 0);
+  write_dr(2, 0);
+  write_dr(3, 0);
+  write_dr(6, 0xFFFF07F0);  // Bits 31:16 and 10:4 must be set to 1.
+  write_dr(7, 0x400);       // Bit 10 must be set to 1.
 
   // Set up exception handlers for tracing and breakpoints
   register_handler(0, handle_exception);

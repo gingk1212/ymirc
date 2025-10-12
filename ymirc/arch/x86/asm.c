@@ -80,3 +80,56 @@ SidtRet sidt() {
   __asm__ volatile("sidt %0" : "=m"(idtr));
   return idtr;
 }
+
+uint64_t read_dr(int reg) {
+  uint64_t value;
+  switch (reg) {
+    case 0:
+      __asm__ volatile("mov %%dr0, %0" : "=r"(value));
+      break;
+    case 1:
+      __asm__ volatile("mov %%dr1, %0" : "=r"(value));
+      break;
+    case 2:
+      __asm__ volatile("mov %%dr2, %0" : "=r"(value));
+      break;
+    case 3:
+      __asm__ volatile("mov %%dr3, %0" : "=r"(value));
+      break;
+    case 6:
+      __asm__ volatile("mov %%dr6, %0" : "=r"(value));
+      break;
+    case 7:
+      __asm__ volatile("mov %%dr7, %0" : "=r"(value));
+      break;
+    default:
+      value = 0;
+      break;
+  }
+  return value;
+}
+
+void write_dr(int reg, uint64_t value) {
+  switch (reg) {
+    case 0:
+      __asm__ volatile("mov %0, %%dr0" ::"r"(value));
+      break;
+    case 1:
+      __asm__ volatile("mov %0, %%dr1" ::"r"(value));
+      break;
+    case 2:
+      __asm__ volatile("mov %0, %%dr2" ::"r"(value));
+      break;
+    case 3:
+      __asm__ volatile("mov %0, %%dr3" ::"r"(value));
+      break;
+    case 6:
+      __asm__ volatile("mov %0, %%dr6" ::"r"(value));
+      break;
+    case 7:
+      __asm__ volatile("mov %0, %%dr7" ::"r"(value));
+      break;
+    default:
+      break;
+  }
+}

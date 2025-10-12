@@ -157,5 +157,8 @@ typedef struct {
 
 SidtRet sidt();
 
+uint64_t read_dr(int reg);
+void write_dr(int reg, uint64_t value);
+
 static inline void stgi() { __asm__ volatile("stgi"); }
 static inline void clgi() { __asm__ volatile("clgi"); }
