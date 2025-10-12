@@ -455,22 +455,9 @@ static void pack_registers(Context *ctx, uint8_t *buffer) {
   buf_ptr += 4; /* TODO: GS */
 }
 
-/*
- * This function does all command procesing for interfacing to gdb.
- */
-static void handle_exception(Context *ctx) {
-  int sigval, stepping;
-  uint64_t addr, length;
-  const uint8_t *ptr;
-
-  if (remote_debug) {
-    LOG_DEBUG("vector=%d, sr=0x%x, pc=0x%x\n", ctx->vector, ctx->rflags,
-              ctx->rip);
-  }
-
-  /* reply to host that an exception has occurred */
-  sigval = computeSignal(ctx->vector);
-
+/* Send initial exception notification to GDB. */
+static void send_exception_notification(Context *ctx) {
+  int sigval = computeSignal(ctx->vector);
   uint8_t *out_ptr = remcomOutBuffer;
 
   *out_ptr++ = 'T'; /* notify gdb with signo, PC, FP and SP */
@@ -479,295 +466,295 @@ static void handle_exception(Context *ctx) {
 
   *out_ptr++ = hexchars[RSP];
   *out_ptr++ = ':';
-  out_ptr =
-      mem2hex((const uint8_t *)&ctx->registers.rsp, out_ptr, 8, 0); /* SP */
+  out_ptr = mem2hex((const uint8_t *)&ctx->registers.rsp, out_ptr, 8, 0);
   *out_ptr++ = ';';
 
   *out_ptr++ = hexchars[RBP];
   *out_ptr++ = ':';
-  out_ptr =
-      mem2hex((const uint8_t *)&ctx->registers.rbp, out_ptr, 8, 0); /* FP */
+  out_ptr = mem2hex((const uint8_t *)&ctx->registers.rbp, out_ptr, 8, 0);
   *out_ptr++ = ';';
 
   *out_ptr++ = hexchars[RIP];
   *out_ptr++ = ':';
-  out_ptr = mem2hex((const uint8_t *)&ctx->rip, out_ptr, 8, 0); /* PC */
+  out_ptr = mem2hex((const uint8_t *)&ctx->rip, out_ptr, 8, 0);
   *out_ptr++ = ';';
 
   *out_ptr = '\0';
 
   putpacket(remcomOutBuffer);
   LOG_DEBUG("gdbstub >> %s\n", remcomOutBuffer);
+}
 
-  stepping = 0;
+/* Handle '?' command - report signal. */
+static int handle_query_signal(Context *ctx) {
+  int sigval = computeSignal(ctx->vector);
+  remcomOutBuffer[0] = 'S';
+  remcomOutBuffer[1] = hexchars[sigval >> 4];
+  remcomOutBuffer[2] = hexchars[sigval % 16];
+  remcomOutBuffer[3] = 0;
+  return 0;
+}
+
+/* Handle 'd' command - toggle debug mode. */
+static int handle_toggle_debug(void) {
+  remote_debug = !(remote_debug);
+  return 0;
+}
+
+/* Handle 'g' command - read all registers. */
+static int handle_read_registers(Context *ctx) {
+  uint8_t register_buffer[NUMREGBYTES];
+  pack_registers(ctx, register_buffer);
+  mem2hex(register_buffer, remcomOutBuffer, NUMREGBYTES, 0);
+  return 0;
+}
+
+/* Handle 'p' command - read single register. */
+static int handle_read_register(Context *ctx, const uint8_t *ptr) {
+  uint64_t regno;
+
+  if (hexToNum(&ptr, &regno)) {
+    uint32_t reg_value_32;
+
+    switch (regno) {
+      case RAX:
+        mem2hex((const uint8_t *)&ctx->registers.rax, remcomOutBuffer, 8, 0);
+        break;
+      case RBX:
+        mem2hex((const uint8_t *)&ctx->registers.rbx, remcomOutBuffer, 8, 0);
+        break;
+      case RCX:
+        mem2hex((const uint8_t *)&ctx->registers.rcx, remcomOutBuffer, 8, 0);
+        break;
+      case RDX:
+        mem2hex((const uint8_t *)&ctx->registers.rdx, remcomOutBuffer, 8, 0);
+        break;
+      case RSI:
+        mem2hex((const uint8_t *)&ctx->registers.rsi, remcomOutBuffer, 8, 0);
+        break;
+      case RDI:
+        mem2hex((const uint8_t *)&ctx->registers.rdi, remcomOutBuffer, 8, 0);
+        break;
+      case RBP:
+        mem2hex((const uint8_t *)&ctx->registers.rbp, remcomOutBuffer, 8, 0);
+        break;
+      case RSP:
+        mem2hex((const uint8_t *)&ctx->registers.rsp, remcomOutBuffer, 8, 0);
+        break;
+      case R8:
+        mem2hex((const uint8_t *)&ctx->registers.r8, remcomOutBuffer, 8, 0);
+        break;
+      case R9:
+        mem2hex((const uint8_t *)&ctx->registers.r9, remcomOutBuffer, 8, 0);
+        break;
+      case R10:
+        mem2hex((const uint8_t *)&ctx->registers.r10, remcomOutBuffer, 8, 0);
+        break;
+      case R11:
+        mem2hex((const uint8_t *)&ctx->registers.r11, remcomOutBuffer, 8, 0);
+        break;
+      case R12:
+        mem2hex((const uint8_t *)&ctx->registers.r12, remcomOutBuffer, 8, 0);
+        break;
+      case R13:
+        mem2hex((const uint8_t *)&ctx->registers.r13, remcomOutBuffer, 8, 0);
+        break;
+      case R14:
+        mem2hex((const uint8_t *)&ctx->registers.r14, remcomOutBuffer, 8, 0);
+        break;
+      case R15:
+        mem2hex((const uint8_t *)&ctx->registers.r15, remcomOutBuffer, 8, 0);
+        break;
+      case RIP:
+        mem2hex((const uint8_t *)&ctx->rip, remcomOutBuffer, 8, 0);
+        break;
+      case EFLAGS:
+        reg_value_32 = (uint32_t)(ctx->rflags & 0xFFFFFFFF);
+        mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+        break;
+      case CS:
+        reg_value_32 = (uint32_t)(ctx->cs & 0xFFFF);
+        mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+        break;
+      case SS:
+      case DS:
+      case ES:
+      case FS:
+      case GS:
+        reg_value_32 = 0;
+        mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
+        break;
+      default:
+        strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+        break;
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+  }
+  return 0;
+}
+
+/* Handle 'm' command - read memory. */
+static int handle_read_memory(const uint8_t *ptr) {
+  uint64_t addr, length;
+
+  if (hexToNum(&ptr, &addr) && *(ptr++) == ',' && hexToNum(&ptr, &length)) {
+    mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
+    if (mem_err) {
+      strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+      debug_error((const uint8_t *)"memory fault", NULL);
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+  }
+  return 0;
+}
+
+/* Handle 'M' command - write memory. */
+static int handle_write_memory(const uint8_t *ptr) {
+  uint64_t addr, length;
+
+  if (hexToNum(&ptr, &addr) && *(ptr++) == ',' && hexToNum(&ptr, &length) &&
+      *(ptr++) == ':') {
+    hex2mem(ptr, (uint8_t *)addr, length, 1);
+    if (mem_err) {
+      strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
+      debug_error((const uint8_t *)"memory fault", NULL);
+    } else {
+      strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"E02");
+  }
+  return 0;
+}
+
+/* Handle 'q' command - query commands. */
+static int handle_query(const uint8_t *ptr) {
+  if (starts_with(ptr, (const uint8_t *)"Supported")) {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"PacketSize=");
+    append_hex_value(remcomOutBuffer, BUFMAX);
+  } else if (starts_with(ptr, (const uint8_t *)"C")) {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"QC1");
+  } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"m1");
+  } else if (starts_with(ptr, (const uint8_t *)"sThreadInfo")) {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"l");
+  } else {
+    remcomOutBuffer[0] = '\0';
+  }
+  return 0;
+}
+
+/* Handle 'H' command - set thread. */
+static int handle_set_thread(const uint8_t *ptr) {
+  if (*ptr == 'g' || *ptr == 'c') {
+    int is_negative = 0;
+    uint64_t num;
+    ptr++;
+
+    if (*ptr == '-') {
+      is_negative = 1;
+      ptr++;
+    }
+
+    if (hexToNum(&ptr, &num) > 0 &&
+        ((is_negative && num == 1) || (!is_negative && num == 0) ||
+         (!is_negative && num == 1))) {
+      strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+    } else {
+      strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+    }
+  } else {
+    strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+  }
+  return 0;
+}
+
+/* Handle continue/step commands - returns 1 to exit command loop. */
+static int handle_continue_step(Context *ctx, const uint8_t *ptr,
+                                int stepping) {
+  uint64_t addr;
+
+  // try to read optional parameter, pc unchanged if no parm.
+  if (hexToNum(&ptr, &addr)) {
+    ctx->rip = addr;
+  }
+
+  // clear the trace bit.
+  ctx->rflags &= 0xfffffffffffffeff;
+
+  // set the trace bit if we're stepping.
+  if (stepping) {
+    ctx->rflags |= 0x100;
+  }
+
+  return 1;  // Exit command loop.
+}
+
+/*
+ * This function does all command procesing for interfacing to gdb.
+ */
+static void handle_exception(Context *ctx) {
+  const uint8_t *ptr;
+  int should_exit = 0;
+
+  if (remote_debug) {
+    LOG_DEBUG("vector=%d, sr=0x%x, pc=0x%x\n", ctx->vector, ctx->rflags,
+              ctx->rip);
+  }
+
+  // reply to host that an exception has occurred.
+  send_exception_notification(ctx);
 
   while (1 == 1) {
     remcomOutBuffer[0] = 0;
     ptr = getpacket();
     LOG_DEBUG("gdbstub << %s\n", remcomInBuffer);
 
-    switch (*ptr++) {
+    uint8_t cmd = *ptr++;
+
+    switch (cmd) {
       case '?':
-        remcomOutBuffer[0] = 'S';
-        remcomOutBuffer[1] = hexchars[sigval >> 4];
-        remcomOutBuffer[2] = hexchars[sigval % 16];
-        remcomOutBuffer[3] = 0;
+        should_exit = handle_query_signal(ctx);
         break;
       case 'd':
-        remote_debug = !(remote_debug); /* toggle debug flag */
+        should_exit = handle_toggle_debug();
         break;
-      case 'g': /* return the value of the CPU registers */
-      {
-        uint8_t register_buffer[NUMREGBYTES];
-        pack_registers(ctx, register_buffer);
-        mem2hex(register_buffer, remcomOutBuffer, NUMREGBYTES, 0);
-      } break;
-
-      case 'p': /* read a single register value */
-      {
-        uint64_t regno;
-
-        if (hexToNum(&ptr, &regno)) {
-          uint32_t reg_value_32;
-
-          // Get register value based on regnames enum order
-          switch (regno) {
-            case RAX:
-              mem2hex((const uint8_t *)&ctx->registers.rax, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RBX:
-              mem2hex((const uint8_t *)&ctx->registers.rbx, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RCX:
-              mem2hex((const uint8_t *)&ctx->registers.rcx, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RDX:
-              mem2hex((const uint8_t *)&ctx->registers.rdx, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RSI:
-              mem2hex((const uint8_t *)&ctx->registers.rsi, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RDI:
-              mem2hex((const uint8_t *)&ctx->registers.rdi, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RBP:
-              mem2hex((const uint8_t *)&ctx->registers.rbp, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RSP:
-              mem2hex((const uint8_t *)&ctx->registers.rsp, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R8:
-              mem2hex((const uint8_t *)&ctx->registers.r8, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R9:
-              mem2hex((const uint8_t *)&ctx->registers.r9, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R10:
-              mem2hex((const uint8_t *)&ctx->registers.r10, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R11:
-              mem2hex((const uint8_t *)&ctx->registers.r11, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R12:
-              mem2hex((const uint8_t *)&ctx->registers.r12, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R13:
-              mem2hex((const uint8_t *)&ctx->registers.r13, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R14:
-              mem2hex((const uint8_t *)&ctx->registers.r14, remcomOutBuffer, 8,
-                      0);
-              break;
-            case R15:
-              mem2hex((const uint8_t *)&ctx->registers.r15, remcomOutBuffer, 8,
-                      0);
-              break;
-            case RIP:
-              mem2hex((const uint8_t *)&ctx->rip, remcomOutBuffer, 8, 0);
-              break;
-            case EFLAGS:
-              reg_value_32 = (uint32_t)(ctx->rflags & 0xFFFFFFFF);
-              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
-              break;
-            case CS:
-              reg_value_32 = (uint32_t)(ctx->cs & 0xFFFF);
-              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
-              break;
-            case SS:
-            case DS:
-            case ES:
-            case FS:
-            case GS:
-              // TODO: These segment registers are not yet stored in Context
-              reg_value_32 = 0;
-              mem2hex((const uint8_t *)&reg_value_32, remcomOutBuffer, 4, 0);
-              break;
-            default:
-              strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
-              break;
-          }
-        } else {
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
-        }
-      } break;
-
-#if 0  // TODO: Support commands like 'G' and 'P' to write registers.
-      case 'G': /* set the value of the CPU registers - return OK */
-        hex2mem(ptr, (uint8_t *)registers, NUMREGBYTES, 0);
-        strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
+      case 'g':
+        should_exit = handle_read_registers(ctx);
         break;
-      case 'P': /* set the value of a single CPU register - return OK */
-      {
-        uint64_t regno;
-
-        if (hexToNum(&ptr, &regno) && *ptr++ == '=')
-          if (regno < NUMREGS_64 + NUMREGS_32) {
-            hex2mem(ptr, (uint8_t *)&registers[regno], 4, 0);
-            strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
-            break;
-          }
-
-        strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
+      case 'p':
+        should_exit = handle_read_register(ctx, ptr);
         break;
-      }
-#endif
-
-      /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
       case 'm':
-        /* TRY TO READ %x,%x.  IF SUCCEED, SET PTR = 0 */
-        if (hexToNum(&ptr, &addr))
-          if (*(ptr++) == ',')
-            if (hexToNum(&ptr, &length)) {
-              ptr = 0;
-              mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
-              if (mem_err) {
-                strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
-                debug_error((const uint8_t *)"memory fault", NULL);
-              }
-            }
-
-        if (ptr) {
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
-        }
+        should_exit = handle_read_memory(ptr);
         break;
-
-      /* MAA..AA,LLLL: Write LLLL bytes at address AA.AA return OK */
       case 'M':
-        /* TRY TO READ '%x,%x:'.  IF SUCCEED, SET PTR = 0 */
-        if (hexToNum(&ptr, &addr))
-          if (*(ptr++) == ',')
-            if (hexToNum(&ptr, &length))
-              if (*(ptr++) == ':') {
-                hex2mem(ptr, (uint8_t *)addr, length, 1);
-                if (mem_err) {
-                  strcpy_local(remcomOutBuffer, (const uint8_t *)"E03");
-                  debug_error((const uint8_t *)"memory fault", NULL);
-                } else {
-                  strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
-                }
-
-                ptr = 0;
-              }
-        if (ptr) {
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"E02");
-        }
+        should_exit = handle_write_memory(ptr);
         break;
-
-      /* cAA..AA    Continue at address AA..AA(optional) */
-      /* sAA..AA   Step one instruction from AA..AA(optional) */
       case 's':
-        stepping = 1;
-        [[fallthrough]];
+        should_exit = handle_continue_step(ctx, ptr, 1);
+        break;
       case 'c':
-        /* try to read optional parameter, pc unchanged if no parm */
-        if (hexToNum(&ptr, &addr)) ctx->rip = addr;
-
-        /* clear the trace bit */
-        ctx->rflags &= 0xfffffffffffffeff;
-
-        /* set the trace bit if we're stepping */
-        if (stepping) ctx->rflags |= 0x100;
-
-        return;
-
-      /* kill the program */
-      case 'k': /* do nothing */
-#if 0
-        /* Huh? This doesn't look like "nothing".
-           m68k-stub.c and sparc-stub.c don't have it.  */
-        BREAKPOINT();
-#endif
+        should_exit = handle_continue_step(ctx, ptr, 0);
         break;
-
+      case 'k':
+        /* kill the program - do nothing */
+        break;
       case 'q':
-        if (starts_with(ptr, (const uint8_t *)"Supported")) {
-          // Reply with PacketSize only.
-          // Format: PacketSize=XXX where XXX is BUFMAX in hex.
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"PacketSize=");
-          append_hex_value(remcomOutBuffer, BUFMAX);
-        } else if (starts_with(ptr, (const uint8_t *)"C")) {
-          // qC: Return current thread ID.
-          // For single-threaded environment, always return thread ID 1.
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"QC1");
-        } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
-          // qfThreadInfo: Return first thread in thread list.
-          // Format: m<thread-id> where thread-id is in hex.
-          // For single-threaded environment, return thread ID 1.
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"m1");
-        } else if (starts_with(ptr, (const uint8_t *)"sThreadInfo")) {
-          // qsThreadInfo: Return subsequent threads.
-          // Format: m<thread-id>[,<thread-id>...] or 'l' for end of list.
-          // Since we only have one thread, return 'l' (end of list).
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"l");
-        } else {
-          // Other q commands are not supported - return empty response.
-          remcomOutBuffer[0] = '\0';
-        }
+        should_exit = handle_query(ptr);
         break;
-
-      /* Set thread for subsequent operations.
-       * Format: Hc-1 or Hg0 where:
-       *   c = continue/step operations
-       *   g = other operations
-       *   -1 = all threads, 0 = any thread, >0 = specific thread
-       */
       case 'H':
-        if (*ptr == 'g' || *ptr == 'c') {
-          int is_negative = 0;
-          uint64_t num;
-          ptr++;
-          // Check for negative thread ID. (e.g., -1 for "all threads")
-          if (*ptr == '-') {
-            is_negative = 1;
-            ptr++;
-          }
-          // Only accept -1 (all), 0 (any) or 1 (our single thread).
-          if (hexToNum(&ptr, &num) > 0 &&
-              ((is_negative && num == 1) || (!is_negative && num == 0) ||
-               (!is_negative && num == 1))) {
-            strcpy_local(remcomOutBuffer, (const uint8_t *)"OK");
-          } else {
-            strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
-          }
-        } else {
-          strcpy_local(remcomOutBuffer, (const uint8_t *)"E01");
-        }
+        should_exit = handle_set_thread(ptr);
         break;
-    } /* switch */
+      default:
+        /* Unknown command - return empty response */
+        remcomOutBuffer[0] = '\0';
+        break;
+    }
+
+    if (should_exit) return;
 
     /* reply to the request */
     putpacket(remcomOutBuffer);
