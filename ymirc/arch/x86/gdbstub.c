@@ -97,7 +97,7 @@ static uint8_t remcomInBuffer[BUFMAX];
 static uint8_t remcomOutBuffer[BUFMAX];
 
 /* Check if string starts with a given prefix. */
-static int starts_with(const uint8_t *str, const uint8_t *prefix) {
+static int starts_with(const uint8_t *str, const char *prefix) {
   while (*prefix != '\0') {
     if (*str != *prefix) {
       return 0;
@@ -109,14 +109,14 @@ static int starts_with(const uint8_t *str, const uint8_t *prefix) {
 }
 
 /* Append a string to the end of another string. */
-static void append_string(uint8_t *dest, const uint8_t *src) {
+static void append_string(uint8_t *dest, const char *src) {
   uint8_t *buf_ptr = dest;
 
   // Find end of current string
   while (*buf_ptr) buf_ptr++;
 
   // Copy source string to end using strcpy_local
-  strcpy_local(buf_ptr, (const char *)src);
+  strcpy_local(buf_ptr, src);
 }
 
 /* Convert an integer value to hexadecimal string and append to buffer. */
@@ -706,15 +706,15 @@ static int handle_write_memory(const uint8_t *ptr) {
 
 /* Handle 'q' command - query commands. */
 static int handle_query(const uint8_t *ptr) {
-  if (starts_with(ptr, (const uint8_t *)"Supported")) {
+  if (starts_with(ptr, "Supported")) {
     strcpy_local(remcomOutBuffer, "PacketSize=");
     append_hex_value(remcomOutBuffer, BUFMAX);
-    append_string(remcomOutBuffer, (const uint8_t *)";hwbreak+");
-  } else if (starts_with(ptr, (const uint8_t *)"C")) {
+    append_string(remcomOutBuffer, ";hwbreak+");
+  } else if (starts_with(ptr, "C")) {
     strcpy_local(remcomOutBuffer, "QC1");
-  } else if (starts_with(ptr, (const uint8_t *)"fThreadInfo")) {
+  } else if (starts_with(ptr, "fThreadInfo")) {
     strcpy_local(remcomOutBuffer, "m1");
-  } else if (starts_with(ptr, (const uint8_t *)"sThreadInfo")) {
+  } else if (starts_with(ptr, "sThreadInfo")) {
     strcpy_local(remcomOutBuffer, "l");
   } else {
     remcomOutBuffer[0] = '\0';
