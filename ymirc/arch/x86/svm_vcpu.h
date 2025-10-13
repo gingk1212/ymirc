@@ -32,6 +32,10 @@ typedef struct {
   uint16_t pending_irq;
   /** Last injected IRQ. */
   uint8_t last_injected_irq;
+#ifdef CONFIG_GDBSTUB
+  /** Saved host debug registers (DR0-DR3, DR6, DR7). */
+  uint64_t host_dr[6];  // DR0, DR1, DR2, DR3, DR6, DR7
+#endif
 } SvmVcpu;
 
 /** Create a new virtual CPU. This function does not virtualize the CPU. You

@@ -21,6 +21,38 @@ __attribute__((naked)) void asm_vmrun() {
                    :
                    : [offset] "i"(offsetof(SvmVcpu, vmcb_phys)));
 
+#ifdef CONFIG_GDBSTUB
+  // Save host debug registers (DR0-DR7).
+  // Note: We save them to SvmVcpu->host_dr[].
+  __asm__ volatile(
+      "mov %%dr0, %%rbx\n\t"
+      "mov %%rbx, %c[dr0](%%rdi)\n\t"
+      "mov %%dr1, %%rbx\n\t"
+      "mov %%rbx, %c[dr1](%%rdi)\n\t"
+      "mov %%dr2, %%rbx\n\t"
+      "mov %%rbx, %c[dr2](%%rdi)\n\t"
+      "mov %%dr3, %%rbx\n\t"
+      "mov %%rbx, %c[dr3](%%rdi)\n\t"
+      "mov %%dr6, %%rbx\n\t"
+      "mov %%rbx, %c[dr6](%%rdi)\n\t"
+      "mov %%dr7, %%rbx\n\t"
+      "mov %%rbx, %c[dr7](%%rdi)\n\t"
+      :
+      : [dr0] "i"(offsetof(SvmVcpu, host_dr[0])),
+        [dr1] "i"(offsetof(SvmVcpu, host_dr[1])),
+        [dr2] "i"(offsetof(SvmVcpu, host_dr[2])),
+        [dr3] "i"(offsetof(SvmVcpu, host_dr[3])),
+        [dr6] "i"(offsetof(SvmVcpu, host_dr[4])),
+        [dr7] "i"(offsetof(SvmVcpu, host_dr[5])));
+
+  // Save pointer to host_dr for later use (for restoring DR registers).
+  __asm__ volatile(
+      "lea %c[offset](%%rdi), %%rbx\n\t"
+      "push %%rbx"
+      :
+      : [offset] "i"(offsetof(SvmVcpu, host_dr)));
+#endif
+
   // Save a pointer to guest registers.
   __asm__ volatile(
       "lea %c[offset](%%rdi), %%rbx\n\t"
@@ -137,6 +169,26 @@ __attribute__((naked)) void asm_vmrun() {
         [xmm5] "i"(offsetof(GuestRegisters, xmm5)),
         [xmm6] "i"(offsetof(GuestRegisters, xmm6)),
         [xmm7] "i"(offsetof(GuestRegisters, xmm7)));
+
+#ifdef CONFIG_GDBSTUB
+  // Get pointer to host_dr.
+  __asm__ volatile("pop %rax");
+
+  // Restore host debug registers.
+  __asm__ volatile(
+      "mov 0(%rax), %rbx\n\t"
+      "mov %rbx, %dr0\n\t"
+      "mov 8(%rax), %rbx\n\t"
+      "mov %rbx, %dr1\n\t"
+      "mov 16(%rax), %rbx\n\t"
+      "mov %rbx, %dr2\n\t"
+      "mov 24(%rax), %rbx\n\t"
+      "mov %rbx, %dr3\n\t"
+      "mov 32(%rax), %rbx\n\t"
+      "mov %rbx, %dr6\n\t"
+      "mov 40(%rax), %rbx\n\t"
+      "mov %rbx, %dr7\n\t");
+#endif
 
   // Restore callee saved registers.
   __asm__ volatile(
