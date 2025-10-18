@@ -19,9 +19,6 @@ static Serial gdb_serial;
 /* boolean flag. != 0 means we've been initialized */
 static char initialized;
 
-/*  debug >  0 prints ill-formed commands in valid packets & checksum errors */
-int remote_debug;
-
 static const uint8_t hexchars[] = "0123456789abcdef";
 
 /* Number of registers.  */
@@ -174,10 +171,6 @@ static uint8_t *getpacket(void) {
       xmitcsum += hex(ch);
 
       if (checksum != xmitcsum) {
-        if (remote_debug) {
-          LOG_ERROR("bad checksum.  My count = 0x%x, sent=0x%x. buf=%s\n",
-                    checksum, xmitcsum, buffer);
-        }
         putDebugChar('-'); /* failed checksum */
       } else {
         putDebugChar('+'); /* successful transfer */
@@ -219,10 +212,6 @@ static void putpacket(const uint8_t *buffer) {
     putDebugChar(hexchars[checksum % 16]);
 
   } while (getDebugChar() != '+');
-}
-
-static void debug_error(const uint8_t *format, const uint8_t *parm) {
-  if (remote_debug) LOG_ERROR((const char *)format, (const char *)parm);
 }
 
 /* Indicate to caller of mem2hex or hex2mem that there has been an
@@ -570,12 +559,6 @@ static int handle_query_signal(Context *ctx) {
   return 0;
 }
 
-/* Handle 'd' command - toggle debug mode. */
-static int handle_toggle_debug(void) {
-  remote_debug = !(remote_debug);
-  return 0;
-}
-
 /* Handle 'g' command - read all registers. */
 static int handle_read_registers(Context *ctx) {
   uint8_t register_buffer[NUMREGBYTES];
@@ -677,7 +660,6 @@ static int handle_read_memory(const uint8_t *ptr) {
     mem2hex((const uint8_t *)addr, remcomOutBuffer, length, 1);
     if (mem_err) {
       strcpy_local(remcomOutBuffer, "E03");
-      debug_error((const uint8_t *)"memory fault", NULL);
     }
   } else {
     strcpy_local(remcomOutBuffer, "E01");
@@ -694,7 +676,6 @@ static int handle_write_memory(const uint8_t *ptr) {
     hex2mem(ptr, (uint8_t *)addr, length, 1);
     if (mem_err) {
       strcpy_local(remcomOutBuffer, "E03");
-      debug_error((const uint8_t *)"memory fault", NULL);
     } else {
       strcpy_local(remcomOutBuffer, "OK");
     }
@@ -807,11 +788,6 @@ static void handle_exception(Context *ctx) {
   const uint8_t *ptr;
   int should_exit = 0;
 
-  if (remote_debug) {
-    LOG_DEBUG("vector=%d, sr=0x%x, pc=0x%x\n", ctx->vector, ctx->rflags,
-              ctx->rip);
-  }
-
   // reply to host that an exception has occurred.
   send_exception_notification(ctx);
 
@@ -825,9 +801,6 @@ static void handle_exception(Context *ctx) {
     switch (cmd) {
       case '?':
         should_exit = handle_query_signal(ctx);
-        break;
-      case 'd':
-        should_exit = handle_toggle_debug();
         break;
       case 'g':
         should_exit = handle_read_registers(ctx);
