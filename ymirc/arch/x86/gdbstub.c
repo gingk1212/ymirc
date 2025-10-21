@@ -538,7 +538,8 @@ static void send_exception_notification(Context *ctx) {
   out_ptr = mem2hex((const uint8_t *)&ctx->registers.rbp, out_ptr, 8, 0);
   *out_ptr++ = ';';
 
-  *out_ptr++ = hexchars[RIP];
+  *out_ptr++ = hexchars[RIP >> 4];
+  *out_ptr++ = hexchars[RIP & 0xf];
   *out_ptr++ = ':';
   out_ptr = mem2hex((const uint8_t *)&ctx->rip, out_ptr, 8, 0);
   *out_ptr++ = ';';
